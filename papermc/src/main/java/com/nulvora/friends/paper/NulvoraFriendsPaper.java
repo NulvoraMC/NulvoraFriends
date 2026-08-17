@@ -3,16 +3,22 @@ package com.nulvora.friends.paper;
 import com.nulvora.friends.paper.api.NulvoraFriendsApi;
 import com.nulvora.friends.paper.api.discord.DiscordCommandRegistry;
 import com.nulvora.friends.paper.cache.FriendCache;
+import com.nulvora.friends.paper.cache.PartyCache;
 import com.nulvora.friends.paper.extension.DiscordCommandManager;
 import com.nulvora.friends.paper.gui.FriendsGUI;
 import com.nulvora.friends.paper.listener.NotificationListener;
 import com.nulvora.friends.paper.messaging.FriendMessageListener;
+import com.nulvora.friends.paper.party.PartyApiImpl;
 import org.bukkit.Bukkit;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.Listener;
+import org.bukkit.event.server.PluginEnableEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 
 public class NulvoraFriendsPaper extends JavaPlugin {
 
     private FriendCache friendCache;
+    private PartyCache partyCache;
     private FriendsGUI friendsGUI;
     private DiscordCommandManager discordCommandManager;
 
@@ -21,12 +27,13 @@ public class NulvoraFriendsPaper extends JavaPlugin {
         saveDefaultConfig();
 
         friendCache = new FriendCache();
+        partyCache = new PartyCache();
         friendsGUI = new FriendsGUI(this);
 
         discordCommandManager = new DiscordCommandManager(this);
 
         // Exponer API singleton
-        NulvoraFriendsApi.setInstance(new NulvoraFriendsApi(discordCommandManager));
+        NulvoraFriendsApi.setInstance(new NulvoraFriendsApi(discordCommandManager, new PartyApiImpl(partyCache)));
 
         getServer().getMessenger().registerOutgoingPluginChannel(this, "nulfriends:main");
         getServer().getMessenger().registerIncomingPluginChannel(this, "nulfriends:main",
@@ -34,6 +41,19 @@ public class NulvoraFriendsPaper extends JavaPlugin {
 
         getServer().getPluginManager().registerEvents(new NotificationListener(this), this);
 
+        // Registrar listener para PlaceholderAPI (carga después de este plugin con loadbefore)
+        getServer().getPluginManager().registerEvents(new Listener() {
+            @EventHandler
+            public void onPluginEnable(PluginEnableEvent event) {
+                if (event.getPlugin().getName().equals("PlaceholderAPI")) {
+                    new com.nulvora.friends.paper.placeholder.FriendsPlaceholder(
+                        NulvoraFriendsPaper.this).register();
+                    getLogger().info("PlaceholderAPI integration enabled.");
+                }
+            }
+        }, this);
+
+        // También intentar registrar ahora si PlaceholderAPI ya está cargado
         if (Bukkit.getPluginManager().getPlugin("PlaceholderAPI") != null) {
             new com.nulvora.friends.paper.placeholder.FriendsPlaceholder(this).register();
             getLogger().info("PlaceholderAPI integration enabled.");
@@ -62,10 +82,14 @@ public class NulvoraFriendsPaper extends JavaPlugin {
         if (friendCache != null) {
             friendCache.clear();
         }
+        if (partyCache != null) {
+            partyCache.clear();
+        }
         getLogger().info("NulvoraFriends-Paper disabled.");
     }
 
     public FriendCache friendCache() { return friendCache; }
+    public PartyCache partyCache() { return partyCache; }
     public FriendsGUI friendsGUI() { return friendsGUI; }
     public DiscordCommandManager discordCommandManager() { return discordCommandManager; }
 

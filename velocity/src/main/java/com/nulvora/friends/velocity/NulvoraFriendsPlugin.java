@@ -11,6 +11,10 @@ import com.nulvora.friends.velocity.discord.DiscordBot;
 import com.nulvora.friends.velocity.extension.ExtensionCommandRegistry;
 import com.nulvora.friends.velocity.friends.FriendService;
 import com.nulvora.friends.velocity.messaging.PluginMessageListener;
+import com.nulvora.friends.velocity.party.PartyCommand;
+import com.nulvora.friends.velocity.party.PartyFollowListener;
+import com.nulvora.friends.velocity.party.PartyListener;
+import com.nulvora.friends.velocity.party.PartyService;
 import com.nulvora.friends.velocity.presence.PresenceListener;
 import com.nulvora.friends.velocity.storage.Database;
 import com.velocitypowered.api.event.Subscribe;
@@ -29,7 +33,7 @@ import java.util.concurrent.Executors;
 import com.google.inject.Inject;
 import org.slf4j.Logger;
 
-@Plugin(id = "nulfriends", name = "NulvoraFriends", version = "1.1.1-SNAPSHOT",
+@Plugin(id = "nulfriends", name = "NulvoraFriends", version = "1.2.0-SNAPSHOT",
         url = "https://github.com/nulvora/nulvorafriends",
         description = "Sistema de amigos con integracion Discord para la network Nulvora")
 public class NulvoraFriendsPlugin {
@@ -42,6 +46,7 @@ public class NulvoraFriendsPlugin {
     private FriendService friendService;
     private DiscordBot discordBot;
     private ExtensionCommandRegistry extensionRegistry;
+    private PartyService partyService;
     private PresenceListener presenceListener;
     private ExecutorService executor;
 
@@ -64,6 +69,10 @@ public class NulvoraFriendsPlugin {
 
         friendService = new FriendService(db);
 
+        if (config.party().enabled()) {
+            partyService = new PartyService(this);
+        }
+
         if (config.discord().enabled()) {
             discordBot = new DiscordBot(this);
             discordBot.start();
@@ -76,12 +85,13 @@ public class NulvoraFriendsPlugin {
                     discordBot.getJda().ifPresent(jda -> {
                         try {
                             jda.awaitReady();
+                            extensionRegistry.clearDynamicCommands();
+                            logger.info("Comandos dinámicos stale limpiados de Discord.");
                         } catch (InterruptedException e) {
                             Thread.currentThread().interrupt();
-                            return;
+                        } catch (Exception e) {
+                            logger.warn("No se pudieron limpiar comandos dinámicos: " + e.getMessage());
                         }
-                        extensionRegistry.clearDynamicCommands();
-                        logger.info("Comandos dinámicos stale limpiados de Discord.");
                     });
                 }).delay(5, java.util.concurrent.TimeUnit.SECONDS).schedule();
             }
@@ -92,6 +102,11 @@ public class NulvoraFriendsPlugin {
         presenceListener = new PresenceListener(this);
         proxy.getEventManager().register(this, presenceListener);
         proxy.getEventManager().register(this, new PluginMessageListener(this));
+
+        if (partyService != null) {
+            proxy.getEventManager().register(this, new PartyListener(this));
+            proxy.getEventManager().register(this, new PartyFollowListener(this));
+        }
 
         proxy.getCommandManager().register(
             proxy.getCommandManager().metaBuilder("nulfriends:amigos").build(),
@@ -105,6 +120,13 @@ public class NulvoraFriendsPlugin {
             proxy.getCommandManager().metaBuilder("nulfriends:desvincular").build(),
             new UnlinkCommand(this).create()
         );
+
+        if (partyService != null) {
+            proxy.getCommandManager().register(
+                proxy.getCommandManager().metaBuilder("nulfriends:party").build(),
+                new PartyCommand(this).create()
+            );
+        }
 
         logger.info("NulvoraFriends enabled.");
     }
@@ -155,6 +177,8 @@ public class NulvoraFriendsPlugin {
     public Optional<DiscordBot> discordBot() { return Optional.ofNullable(discordBot); }
     public Optional<ExtensionCommandRegistry> extensionRegistryOpt() { return Optional.ofNullable(extensionRegistry); }
     public ExtensionCommandRegistry extensionRegistry() { return extensionRegistry; }
+    public Optional<PartyService> partyServiceOpt() { return Optional.ofNullable(partyService); }
+    public PartyService partyService() { return partyService; }
     public PresenceListener presence() { return presenceListener; }
     public ExecutorService executor() { return executor; }
 }

@@ -14,6 +14,7 @@ import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEve
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
 import net.dv8tion.jda.api.interactions.commands.OptionType;
 import net.dv8tion.jda.api.requests.GatewayIntent;
+import net.dv8tion.jda.api.events.session.ReadyEvent;
 import org.jetbrains.annotations.NotNull;
 
 public class DiscordBot extends ListenerAdapter {
@@ -27,7 +28,12 @@ public class DiscordBot extends ListenerAdapter {
 
     public void start() {
         NulvoraConfig.DiscordConfig config = plugin.config().discord();
-        if (!config.enabled() || config.token().isBlank()) return;
+        if (!config.enabled() || config.token().isBlank()) {
+            plugin.logger().warn("Discord deshabilitado o token vacío. Bot no iniciado.");
+            return;
+        }
+
+        plugin.logger().info("Iniciando bot de Discord...");
 
         jda = JDABuilder.createDefault(config.token())
             .enableIntents(GatewayIntent.GUILD_MEMBERS, GatewayIntent.GUILD_MESSAGES, GatewayIntent.DIRECT_MESSAGES)
@@ -36,13 +42,27 @@ public class DiscordBot extends ListenerAdapter {
 
         jda.upsertCommand("vincular", "Vincula tu cuenta de Discord con Minecraft")
             .addOption(OptionType.STRING, "codigo", "Codigo generado en /vincular de Minecraft", true)
-            .queue();
+            .queue(
+                v -> plugin.logger().info("Comando /vincular registrado."),
+                e -> plugin.logger().error("Error registrando /vincular: " + e.getMessage())
+            );
 
-        jda.upsertCommand("desvincular", "Desvincula tu cuenta de Discord").queue();
+        jda.upsertCommand("desvincular", "Desvincula tu cuenta de Discord").queue(
+            v -> plugin.logger().info("Comando /desvincular registrado."),
+            e -> plugin.logger().error("Error registrando /desvincular: " + e.getMessage())
+        );
 
         jda.upsertCommand("amigos", "Muestra tu lista de amigos y su estado")
             .addOption(OptionType.USER, "usuario", "Ver amigos de otro usuario vinculado", false)
-            .queue();
+            .queue(
+                v -> plugin.logger().info("Comando /amigos registrado."),
+                e -> plugin.logger().error("Error registrando /amigos: " + e.getMessage())
+            );
+    }
+
+    @Override
+    public void onReady(@NotNull ReadyEvent event) {
+        plugin.logger().info("Bot de Discord conectado como " + event.getJDA().getSelfUser().getAsTag());
     }
 
     public void stop() {

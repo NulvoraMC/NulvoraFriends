@@ -17,14 +17,15 @@ Guia completa para desarrolladores y agentes de IA que quieran registrar comando
 5. [Ejemplo completo funcional](#5-ejemplo-completo-funcional)
 6. [Referencia de la API](#6-referencia-de-la-api)
 7. [Restricciones y limitaciones](#7-restricciones-y-limitaciones)
-8. [Errores comunes](#8-errores-comunes)
+8. [API de Party](#8-api-de-party-v120)
+9. [Errores comunes](#9-errores-comunes)
 
 ---
 
 ## 1. Requisitos
 
-- **NulvoraFriends-Paper 1.1.0+** instalado en el servidor PaperMC
-- **NulvoraFriends-Velocity 1.1.0+** ejecutandose en el proxy Velocity
+- **NulvoraFriends-Paper 1.2.0+** instalado en el servidor PaperMC
+- **NulvoraFriends-Velocity 1.2.0+** ejecutandose en el proxy Velocity
 - **Discord habilitado** en la configuracion de Velocity (`discord.enabled: true` con token y guild-id validos)
 - Java 21 o superior
 - El servidor PaperMC debe estar registrado en la config de Velocity (`server-names`)
@@ -138,7 +139,7 @@ repositories {
 
 dependencies {
     compileOnly("io.papermc.paper:paper-api:1.21.1-R0.1-SNAPSHOT")
-    compileOnly("com.nulvora.friends:nulvora-friends-papermc:1.1.0-SNAPSHOT")
+    compileOnly("com.nulvora.friends:nulvora-friends-papermc:1.2.0-SNAPSHOT")
 }
 ```
 
@@ -188,7 +189,7 @@ Si usas Maven en vez de Gradle:
         <dependency>
             <groupId>com.nulvora.friends</groupId>
             <artifactId>nulvora-friends-papermc</artifactId>
-            <version>1.1.0-SNAPSHOT</version>
+            <version>1.2.0-SNAPSHOT</version>
             <scope>provided</scope>
         </dependency>
     </dependencies>
@@ -236,7 +237,7 @@ mvn dependency:tree
 Deberias ver algo como:
 
 ```
-com.nulvora.friends:nulvora-friends-papermc:1.1.0-SNAPSHOT -> compileOnly (provided)
+com.nulvora.friends:nulvora-friends-papermc:1.2.0-SNAPSHOT -> compileOnly (provided)
 ```
 
 ---
@@ -665,7 +666,59 @@ registry.unregisterAll();         // Todos los de esta extension
 
 ---
 
-## 8. Errores comunes
+## 8. API de Party (v1.2.0)
+
+Desde v1.2.0, las extensiones pueden consultar informacion de parties de jugadores a traves de la API de NulvoraFriends.
+
+### Uso basico
+
+```java
+import com.nulvora.friends.paper.api.NulvoraFriendsApi;
+import com.nulvora.friends.paper.api.party.*;
+
+PartyApi party = NulvoraFriendsApi.get().party();
+
+// Verificar si un jugador esta en party
+boolean inParty = party.isInParty(playerUuid);
+
+// Obtener snapshot completo
+Optional<PartySnapshot> snapshot = party.getParty(playerUuid);
+snapshot.ifPresent(s -> {
+    UUID leader = s.leader();
+    List<PartyMember> members = s.members();
+    // ...
+});
+
+// Obtener solo miembros
+List<PartyMember> members = party.getMembers(playerUuid);
+
+// Verificar si es lider
+boolean isLeader = party.isLeader(playerUuid);
+```
+
+### Records
+
+**`PartySnapshot`** — snapshot de la party:
+- `UUID partyId` — identificador unico de la party
+- `UUID leader` — UUID del lider
+- `List<PartyMember> members` — lista de miembros
+
+**`PartyMember`** — un miembro:
+- `UUID uuid` — UUID del jugador
+- `String name` — nombre del jugador
+- `boolean online` — si esta online
+- `String server` — servidor donde esta (nullable si offline)
+
+### Limitaciones
+
+- Los datos provienen de un cache actualizado por Velocity via plugin messaging
+- Solo hay datos de jugadores **conectados a este servidor backend**
+- Los datos se actualizan cuando la party cambia (join/leave/kick/disband/follow)
+- No hay datos historicos ni de jugadores offline en otros servidores
+
+---
+
+## 9. Errores comunes
 
 | Error | Causa | Solucion |
 |-------|-------|----------|
@@ -703,7 +756,7 @@ Cuando un agente de IA implemente una extension para NulvoraFriends, debe seguir
 
 ### Paso 1: Verificar build.gradle.kts
 
-- Tiene `compileOnly("com.nulvora.friends:nulvora-friends-papermc:1.1.0-SNAPSHOT")`
+- Tiene `compileOnly("com.nulvora.friends:nulvora-friends-papermc:1.2.0-SNAPSHOT")`
 - NO usa `implementation` para esta dependencia
 
 ### Paso 2: Verificar plugin.yml

@@ -1,5 +1,5 @@
 name: NulvoraFriends
-version: '1.1.1-SNAPSHOT'
+version: '1.2.0-SNAPSHOT'
 main: com.nulvora.friends.paper.NulvoraFriendsPaper
 description: Sistema de amigos para la network Nulvora - Plugin backend
 api-version: '1.21'
@@ -8,6 +8,9 @@ metadata:
   authors: [Nulvora]
 
 softdepend:
+  - PlaceholderAPI
+
+loadbefore:
   - PlaceholderAPI
 
 commands:

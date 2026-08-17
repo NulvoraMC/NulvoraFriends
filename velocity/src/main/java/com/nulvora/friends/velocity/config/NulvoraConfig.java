@@ -24,12 +24,16 @@ public class NulvoraConfig {
     @SerializedName("extensions")
     private ExtensionsConfig extensions = new ExtensionsConfig();
 
+    @SerializedName("party")
+    private PartyConfig party = new PartyConfig();
+
     public MysqlConfig mysql() { return mysql; }
     public DiscordConfig discord() { return discord; }
     public Map<String, String> serverNames() { return serverNames; }
     public int maxFriends() { return maxFriends; }
     public MessagesConfig messages() { return messages; }
     public ExtensionsConfig extensions() { return extensions; }
+    public PartyConfig party() { return party; }
 
     public String getServerName(String serverId) {
         return serverNames.getOrDefault(serverId, serverId);
@@ -84,6 +88,24 @@ public class NulvoraConfig {
         @SerializedName("friend-join-network") private String friendJoinNetwork = "&a&l+ &e%player% &ase ha conectado a la red.";
         @SerializedName("friend-leave-network") private String friendLeaveNetwork = "&c&l- &e%player% &ase ha desconectado.";
         @SerializedName("friend-server-change") private String friendServerChange = "&e%friend% &ahas entrado a &e%server%&a.";
+        @SerializedName("party-invitation-received") private String partyInvitationReceived = "&e%player% &ate ha invitado a una party. Usa &e/party aceptar %player%";
+        @SerializedName("party-invitation-sent") private String partyInvitationSent = "&aInvitación enviada a &e%player%&a.";
+        @SerializedName("party-joined") private String partyJoined = "&aTe has unido a la party de &e%leader%&a.";
+        @SerializedName("party-player-joined") private String partyPlayerJoined = "&e%player% &ase ha unido a la party.";
+        @SerializedName("party-left") private String partyLeft = "&aHas abandonado la party.";
+        @SerializedName("party-player-left") private String partyPlayerLeft = "&e%player% &aha abandonado la party.";
+        @SerializedName("party-disbanded") private String partyDisbanded = "&cLa party se ha disuelto.";
+        @SerializedName("party-leader-changed") private String partyLeaderChanged = "&e%player% &aes el nuevo líder de la party.";
+        @SerializedName("party-follow") private String partyFollow = "&aTu party se ha movido a &e%server%&a.";
+        @SerializedName("party-not-in-party") private String partyNotInParty = "&cNo estás en ninguna party.";
+        @SerializedName("party-already-in-party") private String partyAlreadyInParty = "&cYa estás en una party.";
+        @SerializedName("party-full") private String partyFull = "&cLa party está llena (máximo %max%).";
+        @SerializedName("party-invite-expired") private String partyInviteExpired = "&cLa invitación ha expirado.";
+        @SerializedName("party-invite-not-found") private String partyInviteNotFound = "&cNo tienes invitación pendiente de &e%player%&c.";
+        @SerializedName("party-kicked") private String partyKicked = "&cHas sido expulsado de la party.";
+        @SerializedName("party-player-kicked") private String partyPlayerKicked = "&e%player% &aha sido expulsado de la party.";
+        @SerializedName("party-not-leader") private String partyNotLeader = "&cNo eres el líder de la party.";
+        @SerializedName("party-toofew") private String partyToofew = "&cLa party necesita al menos 2 jugadores para moverse.";
 
         public String friendRequestSent() { return friendRequestSent; }
         public String friendRequestReceived() { return friendRequestReceived; }
@@ -105,6 +127,24 @@ public class NulvoraConfig {
         public String friendJoinNetwork() { return friendJoinNetwork; }
         public String friendLeaveNetwork() { return friendLeaveNetwork; }
         public String friendServerChange() { return friendServerChange; }
+        public String partyInvitationReceived() { return partyInvitationReceived; }
+        public String partyInvitationSent() { return partyInvitationSent; }
+        public String partyJoined() { return partyJoined; }
+        public String partyPlayerJoined() { return partyPlayerJoined; }
+        public String partyLeft() { return partyLeft; }
+        public String partyPlayerLeft() { return partyPlayerLeft; }
+        public String partyDisbanded() { return partyDisbanded; }
+        public String partyLeaderChanged() { return partyLeaderChanged; }
+        public String partyFollow() { return partyFollow; }
+        public String partyNotInParty() { return partyNotInParty; }
+        public String partyAlreadyInParty() { return partyAlreadyInParty; }
+        public String partyFull() { return partyFull; }
+        public String partyInviteExpired() { return partyInviteExpired; }
+        public String partyInviteNotFound() { return partyInviteNotFound; }
+        public String partyKicked() { return partyKicked; }
+        public String partyPlayerKicked() { return partyPlayerKicked; }
+        public String partyNotLeader() { return partyNotLeader; }
+        public String partyToofew() { return partyToofew; }
     }
 
     public static class ExtensionsConfig {
@@ -113,5 +153,25 @@ public class NulvoraConfig {
 
         public boolean enabled() { return enabled; }
         public long commandTimeoutMs() { return commandTimeoutMs; }
+    }
+
+    public static class PartyConfig {
+        @SerializedName("enabled") private boolean enabled = true;
+        @SerializedName("max-size") private int maxSize = 10;
+        @SerializedName("invite-expire-seconds") private int inviteExpireSeconds = 60;
+        @SerializedName("follow") private FollowConfig follow = new FollowConfig();
+
+        public boolean enabled() { return enabled; }
+        public int maxSize() { return maxSize; }
+        public int inviteExpireSeconds() { return inviteExpireSeconds; }
+        public FollowConfig follow() { return follow; }
+    }
+
+    public static class FollowConfig {
+        @SerializedName("enabled") private boolean enabled = true;
+        @SerializedName("cooldown-ms") private long cooldownMs = 5000;
+
+        public boolean enabled() { return enabled; }
+        public long cooldownMs() { return cooldownMs; }
     }
 }

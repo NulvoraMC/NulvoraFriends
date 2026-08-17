@@ -8,6 +8,7 @@ import com.nulvora.friends.common.dto.extension.RegisterAckPayload;
 import com.nulvora.friends.common.messaging.Channel;
 import com.nulvora.friends.paper.NulvoraFriendsPaper;
 import com.nulvora.friends.paper.cache.FriendCache;
+import com.nulvora.friends.paper.cache.PartyCache;
 import com.nulvora.friends.paper.extension.DiscordCommandManager;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -44,6 +45,7 @@ public class FriendMessageListener implements PluginMessageListener {
                 case Channel.MSG_OPEN_MENU -> plugin.friendsGUI().open(player);
                 case Channel.MSG_EXT_REGISTER_ACK -> handleRegisterAck(payload);
                 case Channel.MSG_EXT_INVOKE -> handleInvoke(payload);
+                case Channel.MSG_PARTY_DATA -> handlePartyData(player, payload);
             }
         } catch (Exception e) {
             plugin.getLogger().warning("Error processing plugin message: " + e.getMessage());
@@ -58,6 +60,33 @@ public class FriendMessageListener implements PluginMessageListener {
     private void handleInvoke(JsonObject payload) {
         InvokeCommandPayload invoke = Channel.gson().fromJson(payload, InvokeCommandPayload.class);
         discordCommandManager.handleInvoke(invoke);
+    }
+
+    private void handlePartyData(Player player, JsonObject payload) {
+        PartyCache partyCache = plugin.partyCache();
+        if (partyCache == null) return;
+
+        if (payload.has("party_id") && !payload.get("party_id").isJsonNull()) {
+            java.util.UUID partyId = java.util.UUID.fromString(payload.get("party_id").getAsString());
+            java.util.UUID leaderId = java.util.UUID.fromString(payload.get("leader_uuid").getAsString());
+
+            java.util.List<PartyCache.CachedPartyMember> members = new java.util.ArrayList<>();
+            JsonArray membersArray = payload.getAsJsonArray("members");
+            for (int i = 0; i < membersArray.size(); i++) {
+                JsonObject entry = membersArray.get(i).getAsJsonObject();
+                java.util.UUID uuid = java.util.UUID.fromString(entry.get("uuid").getAsString());
+                String name = entry.get("name").getAsString();
+                boolean online = entry.get("online").getAsBoolean();
+                String server = entry.has("server") && !entry.get("server").isJsonNull()
+                    ? entry.get("server").getAsString() : null;
+                members.add(new PartyCache.CachedPartyMember(uuid, name, online, server));
+            }
+
+            partyCache.updateParty(player.getUniqueId(),
+                new PartyCache.CachedParty(partyId, leaderId, members));
+        } else {
+            partyCache.remove(player.getUniqueId());
+        }
     }
 
     private void handleFriendData(Player player, JsonObject payload) {

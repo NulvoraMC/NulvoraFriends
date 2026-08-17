@@ -18,14 +18,14 @@ JAVA_HOME=/home/daniel/.sdkman/candidates/java/25.0.3-tem ./gradlew clean build
 
 ## Output JARs
 
-- `velocity/build/libs/nulvora-friends-velocity-1.1.0-SNAPSHOT.jar` — Plugin Velocity (shadow JAR with JDA, HikariCP, MariaDB driver)
-- `papermc/build/libs/nulvora-friends-papermc-1.1.0-SNAPSHOT.jar` — Plugin PaperMC backend (shadow JAR, includes common classes)
+- `velocity/build/libs/nulvora-friends-velocity-1.2.0-SNAPSHOT.jar` — Plugin Velocity (shadow JAR with JDA, HikariCP, MariaDB driver)
+- `papermc/build/libs/nulvora-friends-papermc-1.2.0-SNAPSHOT.jar` — Plugin PaperMC backend (shadow JAR, includes common classes)
 
 ## Project structure
 
-- `common/` — Shared DTOs (Gson) for plugin messaging protocol proxy↔backend. Compiled at Java 21 target. Contains DTOs for the extension system (command specs, invocations, responses, embeds).
-- `velocity/` — Core plugin: friend system, commands, Discord bot (JDA 6.5.0 embebido), DB (MySQL/MariaDB via HikariCP), **ExtensionCommandRegistry** (dynamic slash command routing). Compiled with Java 25 toolchain.
-- `papermc/` — Backend plugin: receives friend data via plugin messaging, PlaceholderAPI placeholders, inventory GUI, notifications, **public API for extensions** (`com.nulvora.friends.paper.api`), **DiscordCommandManager** (command registration, handler execution with timeout). Compiled at Java 21 target.
+- `common/` — Shared DTOs (Gson) for plugin messaging protocol proxy↔backend. Compiled at Java 21 target. Contains DTOs for the extension system (command specs, invocations, responses, embeds) and party system.
+- `velocity/` — Core plugin: friend system, party system, commands, Discord bot (JDA 6.5.0 embebido), DB (MySQL/MariaDB via HikariCP), **ExtensionCommandRegistry** (dynamic slash command routing), **PartyService** (in-memory party management, auto-follow on leader server switch). Compiled with Java 25 toolchain.
+- `papermc/` — Backend plugin: receives friend/party data via plugin messaging, PlaceholderAPI placeholders, inventory GUI, notifications, **public API for extensions** (`com.nulvora.friends.paper.api`) including `PartyApi`, **DiscordCommandManager** (command registration, handler execution with timeout). Compiled at Java 21 target.
 
 ## Key technical decisions
 
@@ -106,6 +106,61 @@ First-come-first-served. Duplicate names (including built-in `vincular`/`desvinc
 - Extension enables → calls `register()` → queued → flushed on first player join → ack received
 - Extension disables → `PluginDisableEvent` → auto-unregister all its commands
 - Proxy restarts → Velocity clears all dynamic commands from Discord → backends re-register on next player join
+
+## Party system (v1.2.0)
+
+In-memory party system with automatic follow on leader server switch.
+
+### Velocity classes (`com.nulvora.friends.velocity.party`)
+
+- `Party` — model: UUID id, UUID leader, LinkedHashSet<UUID> members, lastFollowAt (cooldown)
+- `PartyService` — in-memory state (Map<UUID, Party>), party lifecycle (create/invite/accept/leave/kick/disband), data push to backends, follow logic (cooldown, canFollow, warpMembers)
+- `PartyListener` — lifecycle events: PostLogin (push empty), Disconnect (remove member, transfer leadership), ServerConnected (refresh push to all members)
+- `PartyFollowListener` — auto-warp: listens ServerConnectedEvent, checks leader + both servers in server-names list, cooldown, createConnectionRequest for each member
+- `PartyCommand` — `/party` Brigadier: invitar, aceptar, rechazar, abandonar, expulsar, disolver, warp, lista (default)
+
+### Message types (party)
+
+| Message | Direction | Purpose |
+|---------|-----------|---------|
+| `party_data` | Proxy→Backend | Push party state to a player (members, leader, online/server info) |
+
+### PaperMC API (`com.nulvora.friends.paper.api.party`)
+
+- `PartyApi` — interface: `isInParty(UUID)`, `getParty(UUID)`, `getMembers(UUID)`, `getLeader(UUID)`, `isLeader(UUID)`
+- `PartySnapshot` — record: partyId, leader, members list
+- `PartyMember` — record: uuid, name, online, server (nullable)
+- `PartyApiImpl` — internal implementation backed by `PartyCache`
+- Access via `NulvoraFriendsApi.get().party()`
+
+### Config (velocity config.json)
+
+```json
+"party": {
+  "enabled": true,
+  "max-size": 10,
+  "invite-expire-seconds": 60,
+  "follow": {
+    "enabled": true,
+    "cooldown-ms": 5000
+  }
+}
+```
+
+### Follow behavior
+
+- Trigger: leader's `ServerConnectedEvent` with `previousServer` present
+- **Both** origin and destination servers must be keys in `server-names`
+- Cooldown per party (default 5s) prevents rapid yank loops
+- Each member (not already on target) is moved via `createConnectionRequest().fireAndForget()`
+- Manual `/party warp` available (same validation)
+
+### Party lifecycle
+
+- Parties are in-memory only (no persistence across proxy restarts)
+- On disconnect: member removed; if leader → oldest member inherits leadership; if empty → disband
+- On PostLogin: push empty party state to clear stale backend cache
+- Invitations expire (configurable, default 60s)
 
 ## Config files
 

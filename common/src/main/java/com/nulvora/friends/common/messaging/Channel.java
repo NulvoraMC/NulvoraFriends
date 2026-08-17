@@ -5,6 +5,7 @@ import com.google.gson.GsonBuilder;
 import com.nulvora.friends.common.dto.FriendDataPayload;
 import com.nulvora.friends.common.dto.FriendNotificationPayload;
 import com.nulvora.friends.common.dto.JoinRequestPayload;
+import com.nulvora.friends.common.dto.PartyDataPayload;
 import java.nio.charset.StandardCharsets;
 
 public final class Channel {
@@ -23,6 +24,8 @@ public final class Channel {
     public static final String MSG_EXT_UNREGISTER = "ext_cmd_unregister";
     public static final String MSG_EXT_INVOKE = "ext_cmd_invoke";
     public static final String MSG_EXT_RESPONSE = "ext_cmd_response";
+
+    public static final String MSG_PARTY_DATA = "party_data";
 
     private static final Gson GSON = new GsonBuilder().create();
 
@@ -46,6 +49,10 @@ public final class Channel {
     }
 
     public static String toJson(JoinRequestPayload payload) {
+        return GSON.toJson(payload);
+    }
+
+    public static String toJson(PartyDataPayload payload) {
         return GSON.toJson(payload);
     }
 

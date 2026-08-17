@@ -39,7 +39,34 @@
     "already-linked": "&cTu cuenta ya está vinculada. Usa &e/desvincular &cprimero.",
     "friend-join-network": "&a&l+ &e%player% &ase ha conectado a la red.",
     "friend-leave-network": "&c&l- &e%player% &ase ha desconectado.",
-    "friend-server-change": "&e%friend% &ahas entrado a &e%server%&a."
+    "friend-server-change": "&e%friend% &ahas entrado a &e%server%&a.",
+    "party-invitation-received": "&e%player% &ate ha invitado a una party. Usa &e/party aceptar %player%",
+    "party-invitation-sent": "&aInvitación enviada a &e%player%&a.",
+    "party-joined": "&aTe has unido a la party de &e%leader%&a.",
+    "party-player-joined": "&e%player% &ase ha unido a la party.",
+    "party-left": "&aHas abandonado la party.",
+    "party-player-left": "&e%player% &aha abandonado la party.",
+    "party-disbanded": "&cLa party se ha disuelto.",
+    "party-leader-changed": "&e%player% &aes el nuevo líder de la party.",
+    "party-follow": "&aTu party se ha movido a &e%server%&a.",
+    "party-not-in-party": "&cNo estás en ninguna party.",
+    "party-already-in-party": "&cYa estás en una party.",
+    "party-full": "&cLa party está llena (máximo %max%).",
+    "party-invite-expired": "&cLa invitación ha expirado.",
+    "party-invite-not-found": "&cNo tienes invitación pendiente de &e%player%&c.",
+    "party-kicked": "&cHas sido expulsado de la party.",
+    "party-player-kicked": "&e%player% &aha sido expulsado de la party.",
+    "party-not-leader": "&cNo eres el líder de la party.",
+    "party-toofew": "&cLa party necesita al menos 2 jugadores para moverse."
+  },
+  "party": {
+    "enabled": true,
+    "max-size": 10,
+    "invite-expire-seconds": 60,
+    "follow": {
+      "enabled": true,
+      "cooldown-ms": 5000
+    }
   },
   "extensions": {
     "enabled": true,
