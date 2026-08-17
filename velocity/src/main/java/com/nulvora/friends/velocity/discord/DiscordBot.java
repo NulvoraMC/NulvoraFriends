@@ -71,10 +71,15 @@ public class DiscordBot extends ListenerAdapter {
 
     @Override
     public void onSlashCommandInteraction(@NotNull SlashCommandInteractionEvent event) {
+        // Built-in commands
         switch (event.getName()) {
             case "vincular" -> handleLink(event);
             case "desvincular" -> handleUnlink(event);
             case "amigos" -> handleFriendsList(event);
+            default -> {
+                // Extension commands
+                plugin.extensionRegistry().handleInteraction(event);
+            }
         }
     }
 

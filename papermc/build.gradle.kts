@@ -1,5 +1,6 @@
 plugins {
     java
+    id("com.gradleup.shadow")
     `maven-publish`
 }
 
@@ -16,6 +17,7 @@ tasks.withType<JavaCompile>().configureEach {
 dependencies {
     compileOnly("io.papermc.paper:paper-api:1.21.1-R0.1-SNAPSHOT")
     compileOnly("me.clip:placeholderapi:2.11.6")
+    compileOnly("org.jetbrains:annotations:24.1.0")
 
     implementation(project(":common"))
     implementation("com.google.code.gson:gson:2.11.0")
@@ -25,12 +27,22 @@ tasks {
     jar {
         archiveBaseName.set("nulvora-friends-papermc")
     }
+
+    shadowJar {
+        archiveBaseName.set("nulvora-friends-papermc")
+        archiveClassifier.set("")
+        duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    }
+
+    build {
+        dependsOn(shadowJar)
+    }
 }
 
 publishing {
     publications {
-        create<MavenPublication>("maven") {
-            from(components["java"])
+        create<MavenPublication>("shadow") {
+            artifact(tasks.shadowJar)
             groupId = project.group.toString()
             artifactId = "nulvora-friends-papermc"
             version = project.version.toString()

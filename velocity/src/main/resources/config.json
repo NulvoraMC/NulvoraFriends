@@ -40,5 +40,9 @@
     "friend-join-network": "&a&l+ &e%player% &ase ha conectado a la red.",
     "friend-leave-network": "&c&l- &e%player% &ase ha desconectado.",
     "friend-server-change": "&e%friend% &ahas entrado a &e%server%&a."
+  },
+  "extensions": {
+    "enabled": true,
+    "command-timeout-ms": 10000
   }
 }

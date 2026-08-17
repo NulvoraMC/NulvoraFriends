@@ -8,6 +8,7 @@ import com.nulvora.friends.velocity.command.LinkCommand;
 import com.nulvora.friends.velocity.command.UnlinkCommand;
 import com.nulvora.friends.velocity.config.NulvoraConfig;
 import com.nulvora.friends.velocity.discord.DiscordBot;
+import com.nulvora.friends.velocity.extension.ExtensionCommandRegistry;
 import com.nulvora.friends.velocity.friends.FriendService;
 import com.nulvora.friends.velocity.messaging.PluginMessageListener;
 import com.nulvora.friends.velocity.presence.PresenceListener;
@@ -27,7 +28,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import org.slf4j.Logger;
 
-@Plugin(id = "nulfriends", name = "NulvoraFriends", version = "1.0.0-SNAPSHOT",
+@Plugin(id = "nulfriends", name = "NulvoraFriends", version = "1.1.0-SNAPSHOT",
         url = "https://github.com/nulvora/nulvorafriends",
         description = "Sistema de amigos con integracion Discord para la network Nulvora")
 public class NulvoraFriendsPlugin {
@@ -39,6 +40,7 @@ public class NulvoraFriendsPlugin {
     private Database db;
     private FriendService friendService;
     private DiscordBot discordBot;
+    private ExtensionCommandRegistry extensionRegistry;
     private PresenceListener presenceListener;
     private ExecutorService executor;
 
@@ -65,6 +67,24 @@ public class NulvoraFriendsPlugin {
             discordBot.start();
         }
 
+        if (config.extensions().enabled()) {
+            extensionRegistry = new ExtensionCommandRegistry(this);
+            if (discordBot != null) {
+                proxy.getScheduler().buildTask(this, () -> {
+                    discordBot.getJda().ifPresent(jda -> {
+                        try {
+                            jda.awaitReady();
+                        } catch (InterruptedException e) {
+                            Thread.currentThread().interrupt();
+                            return;
+                        }
+                        extensionRegistry.clearDynamicCommands();
+                        logger.info("Comandos dinámicos stale limpiados de Discord.");
+                    });
+                }).delay(5, java.util.concurrent.TimeUnit.SECONDS).schedule();
+            }
+        }
+
         proxy.getChannelRegistrar().register(MinecraftChannelIdentifier.from(Channel.CHANNEL_NAME));
 
         presenceListener = new PresenceListener(this);
@@ -89,6 +109,7 @@ public class NulvoraFriendsPlugin {
 
     @Subscribe
     public void onProxyShutdown(ProxyShutdownEvent event) {
+        if (extensionRegistry != null) extensionRegistry.shutdown();
         if (discordBot != null) discordBot.stop();
         if (db != null) db.close();
         if (executor != null) executor.shutdownNow();
@@ -130,6 +151,8 @@ public class NulvoraFriendsPlugin {
     public Database db() { return db; }
     public FriendService friendService() { return friendService; }
     public Optional<DiscordBot> discordBot() { return Optional.ofNullable(discordBot); }
+    public Optional<ExtensionCommandRegistry> extensionRegistryOpt() { return Optional.ofNullable(extensionRegistry); }
+    public ExtensionCommandRegistry extensionRegistry() { return extensionRegistry; }
     public PresenceListener presence() { return presenceListener; }
     public ExecutorService executor() { return executor; }
 }

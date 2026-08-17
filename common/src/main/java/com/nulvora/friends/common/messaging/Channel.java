@@ -16,6 +16,13 @@ public final class Channel {
     public static final String MSG_JOIN_REQUEST = "join_request";
     public static final String MSG_PING = "ping";
     public static final String MSG_PONG = "pong";
+    public static final String MSG_OPEN_MENU = "open_menu";
+
+    public static final String MSG_EXT_REGISTER = "ext_cmd_register";
+    public static final String MSG_EXT_REGISTER_ACK = "ext_cmd_register_ack";
+    public static final String MSG_EXT_UNREGISTER = "ext_cmd_unregister";
+    public static final String MSG_EXT_INVOKE = "ext_cmd_invoke";
+    public static final String MSG_EXT_RESPONSE = "ext_cmd_response";
 
     private static final Gson GSON = new GsonBuilder().create();
 
@@ -39,6 +46,10 @@ public final class Channel {
     }
 
     public static String toJson(JoinRequestPayload payload) {
+        return GSON.toJson(payload);
+    }
+
+    public static String toJson(Object payload) {
         return GSON.toJson(payload);
     }
 

@@ -1,6 +1,9 @@
 package com.nulvora.friends.paper;
 
+import com.nulvora.friends.paper.api.NulvoraFriendsApi;
+import com.nulvora.friends.paper.api.discord.DiscordCommandRegistry;
 import com.nulvora.friends.paper.cache.FriendCache;
+import com.nulvora.friends.paper.extension.DiscordCommandManager;
 import com.nulvora.friends.paper.gui.FriendsGUI;
 import com.nulvora.friends.paper.listener.NotificationListener;
 import com.nulvora.friends.paper.messaging.FriendMessageListener;
@@ -11,6 +14,7 @@ public class NulvoraFriendsPaper extends JavaPlugin {
 
     private FriendCache friendCache;
     private FriendsGUI friendsGUI;
+    private DiscordCommandManager discordCommandManager;
 
     @Override
     public void onEnable() {
@@ -19,8 +23,14 @@ public class NulvoraFriendsPaper extends JavaPlugin {
         friendCache = new FriendCache();
         friendsGUI = new FriendsGUI(this);
 
+        discordCommandManager = new DiscordCommandManager(this);
+
+        // Exponer API singleton
+        NulvoraFriendsApi.setInstance(new NulvoraFriendsApi(discordCommandManager));
+
         getServer().getMessenger().registerOutgoingPluginChannel(this, "nulfriends:main");
-        getServer().getMessenger().registerIncomingPluginChannel(this, "nulfriends:main", new FriendMessageListener(this));
+        getServer().getMessenger().registerIncomingPluginChannel(this, "nulfriends:main",
+            new FriendMessageListener(this, discordCommandManager));
 
         getServer().getPluginManager().registerEvents(new NotificationListener(this), this);
 
@@ -43,6 +53,12 @@ public class NulvoraFriendsPaper extends JavaPlugin {
 
     @Override
     public void onDisable() {
+        NulvoraFriendsApi.clearInstance();
+
+        if (discordCommandManager != null) {
+            discordCommandManager.unregisterAll();
+            discordCommandManager.shutdown();
+        }
         if (friendCache != null) {
             friendCache.clear();
         }
@@ -51,4 +67,15 @@ public class NulvoraFriendsPaper extends JavaPlugin {
 
     public FriendCache friendCache() { return friendCache; }
     public FriendsGUI friendsGUI() { return friendsGUI; }
+    public DiscordCommandManager discordCommandManager() { return discordCommandManager; }
+
+    /**
+     * Retorna la API singleton de NulvoraFriends.
+     * Equivalente a {@code NulvoraFriendsApi.get()} pero accesible desde la instancia del plugin.
+     *
+     * @return la API de NulvoraFriends, o {@code null} si el plugin no está activo
+     */
+    public NulvoraFriendsApi getApi() {
+        return NulvoraFriendsApi.get();
+    }
 }

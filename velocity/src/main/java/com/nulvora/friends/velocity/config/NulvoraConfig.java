@@ -21,11 +21,15 @@ public class NulvoraConfig {
     @SerializedName("messages")
     private MessagesConfig messages = new MessagesConfig();
 
+    @SerializedName("extensions")
+    private ExtensionsConfig extensions = new ExtensionsConfig();
+
     public MysqlConfig mysql() { return mysql; }
     public DiscordConfig discord() { return discord; }
     public Map<String, String> serverNames() { return serverNames; }
     public int maxFriends() { return maxFriends; }
     public MessagesConfig messages() { return messages; }
+    public ExtensionsConfig extensions() { return extensions; }
 
     public String getServerName(String serverId) {
         return serverNames.getOrDefault(serverId, serverId);
@@ -101,5 +105,13 @@ public class NulvoraConfig {
         public String friendJoinNetwork() { return friendJoinNetwork; }
         public String friendLeaveNetwork() { return friendLeaveNetwork; }
         public String friendServerChange() { return friendServerChange; }
+    }
+
+    public static class ExtensionsConfig {
+        @SerializedName("enabled") private boolean enabled = true;
+        @SerializedName("command-timeout-ms") private long commandTimeoutMs = 10000;
+
+        public boolean enabled() { return enabled; }
+        public long commandTimeoutMs() { return commandTimeoutMs; }
     }
 }

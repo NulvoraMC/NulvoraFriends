@@ -3,6 +3,9 @@ package com.nulvora.friends.velocity.messaging;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.nulvora.friends.common.dto.JoinRequestPayload;
+import com.nulvora.friends.common.dto.extension.CommandResponsePayload;
+import com.nulvora.friends.common.dto.extension.RegisterCommandPayload;
+import com.nulvora.friends.common.dto.extension.UnregisterCommandsPayload;
 import com.nulvora.friends.common.messaging.Channel;
 import com.nulvora.friends.velocity.NulvoraFriendsPlugin;
 import com.velocitypowered.api.event.Subscribe;
@@ -31,11 +34,37 @@ public class PluginMessageListener {
         switch (type) {
             case Channel.MSG_JOIN_REQUEST -> handleJoinRequest(player, json.get("payload").toString());
             case Channel.MSG_PING -> handlePing(player);
+            case Channel.MSG_EXT_REGISTER -> handleRegister(player, json.get("payload").toString());
+            case Channel.MSG_EXT_UNREGISTER -> handleUnregister(json.get("payload").toString());
+            case Channel.MSG_EXT_RESPONSE -> handleResponse(json.get("payload").toString());
         }
     }
 
+    private void handleRegister(Player player, String payload) {
+        if (plugin.extensionRegistry() == null) return;
+        RegisterCommandPayload register = Channel.gson().fromJson(payload, RegisterCommandPayload.class);
+        String serverName = player.getCurrentServer()
+            .map(sc -> sc.getServerInfo().getName())
+            .orElse("unknown");
+
+        plugin.extensionRegistry().handleRegister(register, serverName);
+    }
+
+    private void handleUnregister(String payload) {
+        if (plugin.extensionRegistry() == null) return;
+        UnregisterCommandsPayload unregister = Channel.gson().fromJson(payload, UnregisterCommandsPayload.class);
+        plugin.extensionRegistry().handleUnregister(unregister);
+    }
+
+    private void handleResponse(String payload) {
+        if (plugin.extensionRegistry() == null) return;
+        CommandResponsePayload response = Channel.gson().fromJson(payload, CommandResponsePayload.class);
+        plugin.extensionRegistry().handleResponse(response);
+    }
+
     private void handleJoinRequest(Player player, String payload) {
-        JoinRequestPayload request = Channel.gson().fromJson(payload, JoinRequestPayload.class);
+        JoinRequestPayload request =
+            Channel.gson().fromJson(payload, JoinRequestPayload.class);
         UUID target = UUID.fromString(request.targetUuid());
         UUID requester = UUID.fromString(request.playerUuid());
 
