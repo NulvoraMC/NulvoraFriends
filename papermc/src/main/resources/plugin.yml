@@ -1,5 +1,5 @@
 name: NulvoraFriends
-version: '1.1.0-SNAPSHOT'
+version: '1.1.1-SNAPSHOT'
 main: com.nulvora.friends.paper.NulvoraFriendsPaper
 api-version: '1.21'
 description: Sistema de amigos para la network Nulvora - Plugin backend

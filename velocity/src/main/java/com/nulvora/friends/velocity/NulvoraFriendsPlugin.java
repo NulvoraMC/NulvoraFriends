@@ -26,9 +26,10 @@ import java.nio.file.Path;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import com.google.inject.Inject;
 import org.slf4j.Logger;
 
-@Plugin(id = "nulfriends", name = "NulvoraFriends", version = "1.1.0-SNAPSHOT",
+@Plugin(id = "nulfriends", name = "NulvoraFriends", version = "1.1.1-SNAPSHOT",
         url = "https://github.com/nulvora/nulvorafriends",
         description = "Sistema de amigos con integracion Discord para la network Nulvora")
 public class NulvoraFriendsPlugin {
@@ -44,6 +45,7 @@ public class NulvoraFriendsPlugin {
     private PresenceListener presenceListener;
     private ExecutorService executor;
 
+    @Inject
     public NulvoraFriendsPlugin(ProxyServer proxy, Logger logger) {
         this.proxy = proxy;
         this.logger = logger;

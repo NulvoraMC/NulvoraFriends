@@ -418,10 +418,10 @@ public class Database {
         return CompletableFuture.supplyAsync(() -> {
             try (Connection conn = dataSource.getConnection();
                  PreparedStatement ps = conn.prepareStatement(
-                     "SELECT discord_id FROM players WHERE uuid = ?")) {
+                     "SELECT discord_id IS NOT NULL AS linked FROM players WHERE uuid = ?")) {
                 ps.setString(1, uuid.toString());
                 ResultSet rs = ps.executeQuery();
-                return rs.next() && !rs.wasNull();
+                return rs.next() && rs.getBoolean("linked");
             } catch (SQLException e) {
                 throw new RuntimeException(e);
             }

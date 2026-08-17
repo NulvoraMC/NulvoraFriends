@@ -9,6 +9,10 @@ java {
     }
 }
 
+tasks.withType<JavaCompile>().configureEach {
+    options.compilerArgs.addAll(listOf("-source", "21", "-target", "21"))
+}
+
 dependencies {
     implementation(project(":common"))
 
