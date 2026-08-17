@@ -1,0 +1,44 @@
+{
+  "mysql": {
+    "host": "localhost",
+    "port": 3306,
+    "database": "nulvorafriends",
+    "user": "root",
+    "password": "",
+    "pool-size": 5
+  },
+  "discord": {
+    "enabled": false,
+    "token": "TU_TOKEN_DE_DISCORD_AQUI",
+    "guild-id": 0,
+    "linked-role-id": 0
+  },
+  "server-names": {
+    "lobby": "Lobby",
+    "survival-origins": "Survival Origins",
+    "skyblock": "SkyBlock"
+  },
+  "max-friends": 100,
+  "messages": {
+    "friend-request-sent": "&aSolicitud enviada a &e%player%&a.",
+    "friend-request-received": "&e%player% &aquiere ser tu amigo. Usa &e/amigos aceptar %player%",
+    "friend-accepted": "&aAhora eres amigo de &e%player%&a.",
+    "friend-removed": "&cHas eliminado a &e%player% &cde tu lista de amigos.",
+    "friend-removed-by": "&e%player% &celiminó de su lista de amigos.",
+    "already-friends": "&cYa eres amigo de &e%player%&c.",
+    "not-friends": "&cNo eres amigo de &e%player%&c.",
+    "self-request": "&cNo puedes agregarte a ti mismo.",
+    "friend-full": "&cTu lista de amigos está llena (máximo %max%).",
+    "target-friend-full": "&cLa lista de amigos de &e%player% &cestá llena.",
+    "player-offline": "&cEl jugador &e%player% &cestá desconectado.",
+    "player-not-found": "&cJugador no encontrado.",
+    "link-code-generated": "&aTu código de vinculación es: &e%code% &a(válido 5 min). &6Envíalo al bot de Discord.",
+    "link-success": "&aCuenta vinculada con &e%discord%&a.",
+    "unlink-success": "&aCuenta de Discord desvinculada.",
+    "not-linked": "&cTu cuenta no está vinculada con Discord.",
+    "already-linked": "&cTu cuenta ya está vinculada. Usa &e/desvincular &cprimero.",
+    "friend-join-network": "&a&l+ &e%player% &ase ha conectado a la red.",
+    "friend-leave-network": "&c&l- &e%player% &ase ha desconectado.",
+    "friend-server-change": "&e%friend% &ahas entrado a &e%server%&a."
+  }
+}

@@ -1,0 +1,12 @@
+messages:
+  friend-join-network: '&a&l+ &e%player% &ase ha conectado a la red.'
+  friend-leave-network: '&c&l- &e%player% &ase ha desconectado.'
+  friend-server-change: '&e%friend% &ahas entrado a &e%server%&a.'
+
+server-names:
+  lobby: Lobby
+  survival-origins: Survival Origins
+  skyblock: SkyBlock
+
+sounds:
+  friend-join: ''
