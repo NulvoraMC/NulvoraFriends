@@ -5,7 +5,7 @@ plugins {
 
 allprojects {
     group = "com.nulvora.friends"
-    version = "1.2.0-SNAPSHOT"
+    version = "1.2.1-SNAPSHOT"
 
     repositories {
         mavenCentral()

@@ -1,7 +1,6 @@
 package com.nulvora.friends.paper;
 
 import com.nulvora.friends.paper.api.NulvoraFriendsApi;
-import com.nulvora.friends.paper.api.discord.DiscordCommandRegistry;
 import com.nulvora.friends.paper.cache.FriendCache;
 import com.nulvora.friends.paper.cache.PartyCache;
 import com.nulvora.friends.paper.extension.DiscordCommandManager;
@@ -46,18 +45,14 @@ public class NulvoraFriendsPaper extends JavaPlugin {
             @EventHandler
             public void onPluginEnable(PluginEnableEvent event) {
                 if (event.getPlugin().getName().equals("PlaceholderAPI")) {
-                    new com.nulvora.friends.paper.placeholder.FriendsPlaceholder(
-                        NulvoraFriendsPaper.this).register();
-                    getLogger().info("PlaceholderAPI integration enabled.");
+                    com.nulvora.friends.paper.placeholder.PlaceholderAPIHook.register(
+                        NulvoraFriendsPaper.this);
                 }
             }
         }, this);
 
         // También intentar registrar ahora si PlaceholderAPI ya está cargado
-        if (Bukkit.getPluginManager().getPlugin("PlaceholderAPI") != null) {
-            new com.nulvora.friends.paper.placeholder.FriendsPlaceholder(this).register();
-            getLogger().info("PlaceholderAPI integration enabled.");
-        }
+        com.nulvora.friends.paper.placeholder.PlaceholderAPIHook.register(this);
 
         getCommand("amigos").setExecutor((sender, command, label, args) -> {
             if (sender instanceof org.bukkit.entity.Player player) {
