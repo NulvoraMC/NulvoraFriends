@@ -66,11 +66,13 @@ publishing {
     }
     repositories {
         maven {
-            name = "GitHubPackages"
-            url = uri("https://maven.pkg.github.com/${System.getenv("GITHUB_REPOSITORY") ?: "danielmaldonadodev/nulvorafriends"}")
+            name = "Ossrh"
+            val releasesRepo = uri("https://maven.elordenador.org/repository/maven-releases/")
+            val snapshotsRepo = uri("https://maven.elordenador.org/repository/maven-snapshots/")
+            url = if (version.toString().endsWith("SNAPSHOT")) snapshotsRepo else releasesRepo
             credentials {
-                username = System.getenv("GITHUB_ACTOR") ?: "danielmaldonadodev"
-                password = System.getenv("GITHUB_TOKEN") ?: ""
+                username = System.getenv("OSSRH_USERNAME") ?: ""
+                password = System.getenv("OSSRH_PASSWORD") ?: ""
             }
         }
     }

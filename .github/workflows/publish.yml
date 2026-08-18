@@ -1,4 +1,4 @@
-name: Publish to GitHub Packages
+name: Publish to Sonatype
 
 on:
   release:
@@ -9,7 +9,6 @@ on:
 
 permissions:
   contents: read
-  packages: write
 
 jobs:
   publish:
@@ -30,7 +29,8 @@ jobs:
       - name: Build with Gradle
         run: ./gradlew build
 
-      - name: Publish to GitHub Packages
+      - name: Publish to Sonatype
         run: ./gradlew :velocity:publish :papermc:publish
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          OSSRH_USERNAME: ${{ secrets.OSSRH_USERNAME }}
+          OSSRH_PASSWORD: ${{ secrets.OSSRH_PASSWORD }}
