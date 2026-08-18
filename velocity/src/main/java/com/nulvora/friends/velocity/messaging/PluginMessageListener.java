@@ -11,6 +11,7 @@ import com.nulvora.friends.common.messaging.Channel;
 import com.nulvora.friends.velocity.NulvoraFriendsPlugin;
 import com.velocitypowered.api.event.Subscribe;
 import com.velocitypowered.api.event.connection.PluginMessageEvent;
+import com.velocitypowered.api.proxy.ServerConnection;
 import com.velocitypowered.api.proxy.messages.MinecraftChannelIdentifier;
 import com.velocitypowered.api.proxy.Player;
 import java.util.UUID;
@@ -26,7 +27,15 @@ public class PluginMessageListener {
     @Subscribe
     public void onPluginMessage(PluginMessageEvent event) {
         if (!event.getIdentifier().getId().equals(Channel.CHANNEL_NAME)) return;
-        if (!(event.getSource() instanceof Player player)) return;
+
+        Player player;
+        if (event.getSource() instanceof Player p) {
+            player = p;
+        } else if (event.getSource() instanceof ServerConnection sc) {
+            player = sc.getPlayer();
+        } else {
+            return;
+        }
 
         String raw = Channel.decode(event.getData());
         JsonObject json = JsonParser.parseString(raw).getAsJsonObject();

@@ -178,8 +178,9 @@ public class DiscordCommandManager implements DiscordCommandRegistry, Listener {
         }
 
         // Almacenar
-        String ownerPlugin = plugin.getName();
-        commands.put(name, new RegisteredCommand(plugin, handler, spec));
+        Plugin owner = identifyCallerPlugin();
+        String ownerPlugin = owner.getName();
+        commands.put(name, new RegisteredCommand(owner, handler, spec));
 
         // Encolar para enviar al proxy
         String requestId = UUID.randomUUID().toString();
@@ -378,12 +379,34 @@ public class DiscordCommandManager implements DiscordCommandRegistry, Listener {
     // ─── Eventos Bukkit ──────────────────────────────────────────────────
 
     /**
-     * Cuando un jugador entra al servidor, flush la cola de registros pendientes.
-     * Esto cubre el caso donde el plugin se activó sin jugadores conectados.
+     * Cuando un jugador entra al servidor, re-encola todos los comandos
+     * registrados localmente y flush la cola. Esto cubre:
+     * - Comandos registrados antes de que hubiera jugadores online.
+     * - Comandos perdidos tras un reinicio del proxy (que limpia todos los comandos dinámicos).
+     * Velocity maneja idempotencia vía {@code commandToServer.containsKey()}.
      */
     @EventHandler(priority = EventPriority.MONITOR)
     public void onPlayerJoin(PlayerJoinEvent event) {
-        plugin.getServer().getScheduler().runTaskLater(plugin, this::flushPending, 20L);
+        plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
+            // Re-encolar todos los comandos registrados localmente
+            // para cubrir reinicios del proxy
+            synchronized (pendingRegistrations) {
+                for (var entry : commands.entrySet()) {
+                    String name = entry.getKey();
+                    // Solo re-encolar si no hay uno ya pendiente para este nombre
+                    boolean alreadyPending = pendingRegistrations.stream()
+                        .anyMatch(p -> p.spec().name().equals(name));
+                    if (!alreadyPending) {
+                        String requestId = UUID.randomUUID().toString();
+                        RegisteredCommand cmd = entry.getValue();
+                        RegisterCommandPayload payload = new RegisterCommandPayload(
+                            requestId, cmd.owner().getName(), cmd.spec());
+                        pendingRegistrations.add(payload);
+                    }
+                }
+            }
+            flushPending();
+        }, 20L);
     }
 
     /**
@@ -413,6 +436,35 @@ public class DiscordCommandManager implements DiscordCommandRegistry, Listener {
     }
 
     // ─── Lifecycle ───────────────────────────────────────────────────────
+
+    /**
+     * Identifica el plugin que invocó {@code register()} caminando el stack.
+     * Cada plugin Bukkit tiene su propio classloader, así que podemos
+     * encontrar el primer frame cargado por un classloader diferente al nuestro.
+     *
+     * @return el plugin propietario, o el plugin NulvoraFriends si no se pudo identificar
+     */
+    private Plugin identifyCallerPlugin() {
+        ClassLoader myLoader = plugin.getClass().getClassLoader();
+        try {
+            return StackWalker.getInstance(StackWalker.Option.RETAIN_CLASS_REFERENCE)
+                .walk(frames -> frames
+                    .filter(f -> f.getDeclaringClass().getClassLoader() != myLoader)
+                    .findFirst()
+                    .map(f -> {
+                        ClassLoader callerLoader = f.getDeclaringClass().getClassLoader();
+                        for (Plugin p : plugin.getServer().getPluginManager().getPlugins()) {
+                            if (p.getClass().getClassLoader() == callerLoader) {
+                                return p;
+                            }
+                        }
+                        return plugin;
+                    })
+                    .orElse(plugin));
+        } catch (Exception e) {
+            return plugin;
+        }
+    }
 
     /**
      * Desactiva el manager, cancelando timeouts pendientes.
