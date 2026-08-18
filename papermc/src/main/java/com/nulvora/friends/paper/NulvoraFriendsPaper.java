@@ -32,7 +32,7 @@ public class NulvoraFriendsPaper extends JavaPlugin {
         discordCommandManager = new DiscordCommandManager(this);
 
         // Exponer API singleton
-        NulvoraFriendsApi.setInstance(new NulvoraFriendsApi(discordCommandManager, new PartyApiImpl(partyCache)));
+        NulvoraFriendsApi.setInstance(new NulvoraFriendsApi(discordCommandManager, new PartyApiImpl(partyCache, this)));
 
         getServer().getMessenger().registerOutgoingPluginChannel(this, "nulfriends:main");
         getServer().getMessenger().registerIncomingPluginChannel(this, "nulfriends:main",

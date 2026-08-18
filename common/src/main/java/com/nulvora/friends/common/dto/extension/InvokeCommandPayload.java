@@ -2,6 +2,7 @@ package com.nulvora.friends.common.dto.extension;
 
 import com.google.gson.annotations.SerializedName;
 import java.util.Map;
+import org.jetbrains.annotations.Nullable;
 
 /**
  * DTO enviado desde Velocity hacia PaperMC cuando un usuario ejecuta un slash command
@@ -18,5 +19,7 @@ public record InvokeCommandPayload(
     @SerializedName("subcommand") String subcommand,
     @SerializedName("options") Map<String, String> options,
     @SerializedName("discord_user_id") long discordUserId,
-    @SerializedName("discord_username") String discordUsername
+    @SerializedName("discord_username") String discordUsername,
+    @SerializedName("mc_uuid") @Nullable String mcUuid,
+    @SerializedName("mc_name") @Nullable String mcName
 ) {}

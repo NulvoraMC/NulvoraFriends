@@ -13,4 +13,5 @@ tasks.withType<JavaCompile>().configureEach {
 
 dependencies {
     implementation("com.google.code.gson:gson:2.11.0")
+    compileOnly("org.jetbrains:annotations:26.0.2")
 }

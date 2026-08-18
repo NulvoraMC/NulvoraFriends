@@ -3,6 +3,7 @@ package com.nulvora.friends.velocity.messaging;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.nulvora.friends.common.dto.JoinRequestPayload;
+import com.nulvora.friends.common.dto.PartyWarpRequestPayload;
 import com.nulvora.friends.common.dto.extension.CommandResponsePayload;
 import com.nulvora.friends.common.dto.extension.RegisterCommandPayload;
 import com.nulvora.friends.common.dto.extension.UnregisterCommandsPayload;
@@ -37,6 +38,7 @@ public class PluginMessageListener {
             case Channel.MSG_EXT_REGISTER -> handleRegister(player, json.get("payload").toString());
             case Channel.MSG_EXT_UNREGISTER -> handleUnregister(json.get("payload").toString());
             case Channel.MSG_EXT_RESPONSE -> handleResponse(json.get("payload").toString());
+            case Channel.MSG_PARTY_WARP -> handlePartyWarp(json.get("payload").toString());
         }
     }
 
@@ -89,5 +91,25 @@ public class PluginMessageListener {
     private void handlePing(Player player) {
         byte[] pong = Channel.encode(Channel.MSG_PONG, "{}");
         player.sendPluginMessage(MinecraftChannelIdentifier.from(Channel.CHANNEL_NAME), pong);
+    }
+
+    private void handlePartyWarp(String payload) {
+        if (plugin.partyService() == null) return;
+
+        PartyWarpRequestPayload request =
+            Channel.gson().fromJson(payload, PartyWarpRequestPayload.class);
+        UUID leaderUuid = UUID.fromString(request.requesterUuid());
+
+        plugin.proxy().getPlayer(leaderUuid).ifPresent(leader -> {
+            if (!plugin.partyService().isLeader(leaderUuid)) return;
+
+            String currentServer = leader.getCurrentServer()
+                .map(sc -> sc.getServerInfo().getName())
+                .orElse(null);
+            if (currentServer == null) return;
+
+            String displayName = plugin.config().getServerName(currentServer);
+            plugin.partyService().warpMembers(leaderUuid, currentServer, displayName);
+        });
     }
 }

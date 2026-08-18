@@ -58,4 +58,19 @@ public interface PartyApi {
      * @return {@code true} si el jugador es líder
      */
     boolean isLeader(@NotNull UUID playerUuid);
+
+    /**
+     * Solicita al proxy que mueva todos los miembros de la party al servidor
+     * donde se encuentra el líder. El mensaje se envía de forma asíncrona y
+     * {@code true} no garantiza que el warp ocurra, solo que la petición salió.
+     *
+     * <p>Devuelve {@code false} sin hacer nada si el jugador no está en party,
+     * no es el líder, o no hay ningún jugador online que pueda transportar
+     * el mensaje al proxy.</p>
+     *
+     * @param leaderUuid el UUID del líder de la party
+     * @return {@code true} si la petición se envió correctamente
+     * @since 1.3.0
+     */
+    boolean requestWarpToMyServer(@NotNull UUID leaderUuid);
 }

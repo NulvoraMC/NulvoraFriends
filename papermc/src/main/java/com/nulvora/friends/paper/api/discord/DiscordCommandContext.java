@@ -3,6 +3,8 @@ package com.nulvora.friends.paper.api.discord;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
+import org.jetbrains.annotations.Nullable;
 
 /**
  * Contexto de ejecución de un slash command de Discord.
@@ -21,15 +23,37 @@ public final class DiscordCommandContext {
     private final Map<String, String> options;
     private final long discordUserId;
     private final String discordUsername;
+    private final String mcUuid;
+    private final String mcName;
 
+    /**
+     * Crea un contexto de ejecución con toda la información disponible.
+     *
+     * @since 1.3.0
+     */
     public DiscordCommandContext(String command, String subcommand,
                                  Map<String, String> options,
-                                 long discordUserId, String discordUsername) {
+                                 long discordUserId, String discordUsername,
+                                 @Nullable String mcUuid, @Nullable String mcName) {
         this.command = command;
         this.subcommand = subcommand;
         this.options = Collections.unmodifiableMap(options);
         this.discordUserId = discordUserId;
         this.discordUsername = discordUsername;
+        this.mcUuid = mcUuid;
+        this.mcName = mcName;
+    }
+
+    /**
+     * Crea un contexto de ejecución sin información de la cuenta de Minecraft.
+     * Conservado para retrocompatibilidad con código compilado contra versiones anteriores.
+     *
+     * @since 1.1.0
+     */
+    public DiscordCommandContext(String command, String subcommand,
+                                 Map<String, String> options,
+                                 long discordUserId, String discordUsername) {
+        this(command, subcommand, options, discordUserId, discordUsername, null, null);
     }
 
     /**
@@ -121,6 +145,34 @@ public final class DiscordCommandContext {
      */
     public String discordUsername() {
         return discordUsername;
+    }
+
+    /**
+     * Retorna el UUID de la cuenta de Minecraft vinculada al usuario de Discord
+     * que ejecutó el comando.
+     *
+     * @return un {@link Optional} con el UUID, o vacío si no hay cuenta vinculada
+     *         o si el valor no es un UUID válido
+     * @since 1.3.0
+     */
+    public Optional<UUID> minecraftUuid() {
+        if (mcUuid == null) return Optional.empty();
+        try {
+            return Optional.of(UUID.fromString(mcUuid));
+        } catch (IllegalArgumentException e) {
+            return Optional.empty();
+        }
+    }
+
+    /**
+     * Retorna el nombre de la cuenta de Minecraft vinculada al usuario de Discord
+     * que ejecutó el comando.
+     *
+     * @return un {@link Optional} con el nombre, o vacío si no hay cuenta vinculada
+     * @since 1.3.0
+     */
+    public Optional<String> minecraftName() {
+        return Optional.ofNullable(mcName);
     }
 
     /**

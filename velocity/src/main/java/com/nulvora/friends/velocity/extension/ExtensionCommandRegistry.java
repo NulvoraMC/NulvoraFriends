@@ -167,13 +167,25 @@ public class ExtensionCommandRegistry {
             new PendingInvocation(commandName, ephemeralDefault, System.currentTimeMillis(), timeoutTask));
         pendingEventMap.put(invocationId, event);
 
-        InvokeCommandPayload invoke = new InvokeCommandPayload(
-            invocationId, commandName, subcommand, options,
-            event.getUser().getIdLong(), event.getUser().getName()
-        );
+        long discordUserId = event.getUser().getIdLong();
+        String discordUsername = event.getUser().getName();
 
-        byte[] data = Channel.encode(Channel.MSG_EXT_INVOKE, gson.toJson(invoke));
-        carrier.get().sendPluginMessage(MinecraftChannelIdentifier.from(Channel.CHANNEL_NAME), data);
+        plugin.db().getUuidByDiscordId(discordUserId).thenCompose(uuidOpt ->
+            uuidOpt.map(uuid -> plugin.db().getName(uuid).thenApply(name -> new String[]{uuid.toString(), name}))
+                .orElse(CompletableFuture.completedFuture(null))
+        ).thenAccept(mcInfo -> {
+            String mcUuid = mcInfo != null ? mcInfo[0] : null;
+            String mcName = mcInfo != null ? mcInfo[1] : null;
+
+            InvokeCommandPayload invoke = new InvokeCommandPayload(
+                invocationId, commandName, subcommand, options,
+                discordUserId, discordUsername,
+                mcUuid, mcName
+            );
+
+            byte[] data = Channel.encode(Channel.MSG_EXT_INVOKE, gson.toJson(invoke));
+            carrier.get().sendPluginMessage(MinecraftChannelIdentifier.from(Channel.CHANNEL_NAME), data);
+        });
     }
 
     // ─── JDA helpers ─────────────────────────────────────────────────────

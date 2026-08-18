@@ -33,7 +33,7 @@ import java.util.concurrent.Executors;
 import com.google.inject.Inject;
 import org.slf4j.Logger;
 
-@Plugin(id = "nulfriends", name = "NulvoraFriends", version = "1.2.0-SNAPSHOT",
+@Plugin(id = "nulfriends", name = "NulvoraFriends", version = "1.3.0-SNAPSHOT",
         url = "https://github.com/nulvora/nulvorafriends",
         description = "Sistema de amigos con integracion Discord para la network Nulvora")
 public class NulvoraFriendsPlugin {

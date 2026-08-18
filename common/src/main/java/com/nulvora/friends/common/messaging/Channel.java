@@ -26,6 +26,7 @@ public final class Channel {
     public static final String MSG_EXT_RESPONSE = "ext_cmd_response";
 
     public static final String MSG_PARTY_DATA = "party_data";
+    public static final String MSG_PARTY_WARP = "party_warp";
 
     private static final Gson GSON = new GsonBuilder().create();
 

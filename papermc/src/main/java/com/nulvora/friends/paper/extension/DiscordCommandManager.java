@@ -270,7 +270,9 @@ public class DiscordCommandManager implements DiscordCommandRegistry, Listener {
             invoke.subcommand(),
             invoke.options(),
             invoke.discordUserId(),
-            invoke.discordUsername()
+            invoke.discordUsername(),
+            invoke.mcUuid(),
+            invoke.mcName()
         );
 
         // Ejecutar handler con timeout
