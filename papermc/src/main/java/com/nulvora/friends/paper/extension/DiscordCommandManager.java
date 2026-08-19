@@ -61,6 +61,7 @@ public class DiscordCommandManager implements DiscordCommandRegistry, Listener {
     private static final int MAX_OPTIONS = 25;
     private static final int MAX_SUBCOMMANDS = 25;
     private static final long DEFAULT_RESPONSE_TIMEOUT_MS = 8000;
+    private static final long ACK_TIMEOUT_MS = 30000;
 
     private static final List<String> BUILT_IN_COMMANDS = List.of("vincular", "desvincular", "amigos");
 
@@ -86,6 +87,7 @@ public class DiscordCommandManager implements DiscordCommandRegistry, Listener {
         java.util.Collections.synchronizedList(new ArrayList<>());
 
     private long responseTimeoutMs = DEFAULT_RESPONSE_TIMEOUT_MS;
+    private final java.util.concurrent.atomic.AtomicBoolean noCarrierWarned = new java.util.concurrent.atomic.AtomicBoolean(false);
 
     record RegisteredCommand(Plugin owner, DiscordCommandHandler handler, CommandSpecPayload spec) {}
     record PendingInvocation(DiscordCommandResponse defaultResponse, ScheduledFuture<?> timeoutTask) {}
@@ -188,7 +190,21 @@ public class DiscordCommandManager implements DiscordCommandRegistry, Listener {
         RegisterCommandPayload payload = new RegisterCommandPayload(requestId, ownerPlugin, spec);
         pendingRegistrations.add(payload);
 
-        plugin.getLogger().info("Comando Discord registrado: /" + name + " (por " + ownerPlugin + ")");
+        // Si Velocity no confirma el registro en este tiempo, fallar el futuro
+        // en vez de dejarlo colgado para siempre.
+        ScheduledFuture<?> ackTimeoutTask = timeoutScheduler.schedule(() -> {
+            CompletableFuture<Void> pendingFuture = pendingAcks.remove(requestId);
+            if (pendingFuture != null) {
+                pendingFuture.completeExceptionally(new IllegalStateException(
+                    "No se recibió confirmación del proxy para /" + name + " en " + ACK_TIMEOUT_MS
+                        + "ms. Comprueba que hay un jugador online, que el proxy tiene el plugin "
+                        + "NulvoraFriends con 'extensions.enabled=true' y que Discord está conectado."));
+                plugin.getLogger().warning("Timeout esperando ack de registro para /" + name);
+            }
+        }, ACK_TIMEOUT_MS, TimeUnit.MILLISECONDS);
+        future.whenComplete((v, err) -> ackTimeoutTask.cancel(false));
+
+        plugin.getLogger().info("Comando Discord /" + name + " encolado para registro (por " + ownerPlugin + ")");
 
         // Intentar flush inmediato
         flushPending();
@@ -237,18 +253,30 @@ public class DiscordCommandManager implements DiscordCommandRegistry, Listener {
      */
     public void handleRegisterAck(RegisterAckPayload ack) {
         CompletableFuture<Void> future = pendingAcks.remove(ack.requestId());
-        if (future == null) return;
 
         if (ack.success()) {
-            future.complete(null);
+            if (future != null) future.complete(null);
             plugin.getLogger().info("Comando /" + ack.command() + " registrado en Discord correctamente.");
-        } else {
-            // Revertir el registro local
+            return;
+        }
+
+        // Rechazo definitivo (nombre reservado o el comando ya pertenece a otro servidor):
+        // no tiene sentido reintentar, así que se revierte el registro local. Cualquier otro
+        // error (Discord no conectado, guild mal configurada, fallo de JDA) es recuperable y
+        // el comando se re-encolará en el siguiente PlayerJoinEvent.
+        boolean permanentRejection = ack.error() != null && (
+            ack.error().startsWith("Nombre de comando reservado")
+                || ack.error().startsWith("Comando ya registrado por servidor"));
+
+        if (permanentRejection) {
             commands.remove(ack.command());
+        }
+
+        if (future != null) {
             future.completeExceptionally(new IllegalStateException(
                 "Registro rechazado por Velocity: " + ack.error()));
-            plugin.getLogger().warning("Registro de /" + ack.command() + " rechazado: " + ack.error());
         }
+        plugin.getLogger().warning("Registro de /" + ack.command() + " rechazado: " + ack.error());
     }
 
     // ─── Recepción de invocaciones desde Velocity ────────────────────────
@@ -342,7 +370,15 @@ public class DiscordCommandManager implements DiscordCommandRegistry, Listener {
      */
     public void flushPending() {
         Player carrier = findCarrierPlayer();
-        if (carrier == null) return;
+        if (carrier == null) {
+            boolean hasPending = !pendingRegistrations.isEmpty() || !pendingUnregistrations.isEmpty();
+            if (hasPending && noCarrierWarned.compareAndSet(false, true)) {
+                plugin.getLogger().info(
+                    "Registros de comandos Discord en cola: no hay jugadores online para enviarlos al proxy todavía.");
+            }
+            return;
+        }
+        noCarrierWarned.set(false);
 
         // Enviar registros pendientes
         synchronized (pendingRegistrations) {
@@ -449,7 +485,10 @@ public class DiscordCommandManager implements DiscordCommandRegistry, Listener {
         try {
             return StackWalker.getInstance(StackWalker.Option.RETAIN_CLASS_REFERENCE)
                 .walk(frames -> frames
-                    .filter(f -> f.getDeclaringClass().getClassLoader() != myLoader)
+                    .filter(f -> {
+                        ClassLoader cl = f.getDeclaringClass().getClassLoader();
+                        return cl != null && cl != myLoader;
+                    })
                     .findFirst()
                     .map(f -> {
                         ClassLoader callerLoader = f.getDeclaringClass().getClassLoader();

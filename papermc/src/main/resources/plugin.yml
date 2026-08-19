@@ -1,5 +1,5 @@
 name: NulvoraFriends
-version: '1.3.2-SNAPSHOT'
+version: '1.3.3'
 main: com.nulvora.friends.paper.NulvoraFriendsPaper
 api-version: '1.21'
 description: Sistema de amigos para la network Nulvora - Plugin backend
@@ -12,7 +12,3 @@ commands:
     description: Ver tu lista de amigos
     aliases: [friends, f, amigo]
     usage: /amigos
-
-channels:
-  nulfriends:
-    version: 1

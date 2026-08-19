@@ -1,5 +1,23 @@
 # AGENTS.md - NulvoraFriends
 
+## Versionado
+
+Semver `X.Y.Z`, sin sufijo `-SNAPSHOT` en las releases (`-SNAPSHOT` solo para trabajo intermedio no publicado):
+
+- **Tercer número** (`x.y.Z`) → bugfix.
+- **Segundo número** (`x.Y.z`) → característica pequeña.
+- **Primer número** (`X.y.z`) → cambio enorme / ruptura de compatibilidad.
+
+Al subir de versión, actualizar los 4 archivos en bloque (deben decir siempre el mismo número):
+
+- `build.gradle.kts` (`version = "..."`, aplica a todos los subproyectos)
+- `papermc/src/main/resources/plugin.yml` (`version: '...'`)
+- `velocity/src/main/resources/velocity-plugin.json` (`"version": "..."`)
+- `velocity/src/main/java/com/nulvora/friends/velocity/NulvoraFriendsPlugin.java` (`@Plugin(version = "...")`)
+
+Quitar `-SNAPSHOT` cambia el repositorio de publicación de `maven-snapshots` a `maven-releases`
+(ver `publishing` en `papermc/build.gradle.kts` / `velocity/build.gradle.kts`).
+
 ## Build commands
 
 ```bash
@@ -18,8 +36,10 @@ JAVA_HOME=/home/daniel/.sdkman/candidates/java/25.0.3-tem ./gradlew clean build
 
 ## Output JARs
 
-- `velocity/build/libs/nulvora-friends-velocity-1.2.0-SNAPSHOT.jar` — Plugin Velocity (shadow JAR with JDA, HikariCP, MariaDB driver)
-- `papermc/build/libs/nulvora-friends-papermc-1.2.0-SNAPSHOT.jar` — Plugin PaperMC backend (shadow JAR, includes common classes)
+- `velocity/build/libs/nulvora-friends-velocity-<version>.jar` — Plugin Velocity (shadow JAR with JDA, HikariCP, MariaDB driver)
+- `papermc/build/libs/nulvora-friends-papermc-<version>.jar` — Plugin PaperMC backend (shadow JAR, includes common classes)
+
+`<version>` is the value in `build.gradle.kts` (see "Versionado" above).
 
 ## Project structure
 
@@ -36,6 +56,7 @@ JAVA_HOME=/home/daniel/.sdkman/candidates/java/25.0.3-tem ./gradlew clean build
 - **Commands use raw Mojang Brigadier API** (`LiteralArgumentBuilder<CommandSource>`) — NOT `BrigadierCommand.literal()` static methods (which don't exist in Velocity 4.x)
 - **Shadow applied to papermc** (no relocations) to bundle `common` classes into the JAR for runtime use
 - **Extension commands registered as guild-scoped** for instant Discord propagation (not global, which takes up to 1h)
+- **Proxy→backend plugin messages must go through `ServerConnection`, never `Player`**: in Velocity 4.x, `Player#sendPluginMessage(...)` delivers to the player's Minecraft client, not the backend server. Use `player.getCurrentServer().ifPresent(sc -> sc.sendPluginMessage(...))` (or `event.getTarget()` if already in a `ServerConnection` context). Sending on `Player` directly silently sends the payload nowhere useful — it was the root cause of a whole class of "logs success but nothing happens" bugs (see git history around v1.3.3).
 
 ## Architecture
 
@@ -103,9 +124,18 @@ First-come-first-served. Duplicate names (including built-in `vincular`/`desvinc
 
 ### Lifecycle
 
-- Extension enables → calls `register()` → queued → flushed on first player join → ack received
+- Extension enables → calls `register()` → queued → flushed on first player join → **ack only sent
+  after JDA confirms the `upsertCommand`** (success or failure) — a log line saying "registered"
+  is not itself proof the command reached Discord; the ack/future is the source of truth
+- If Discord isn't connected yet (JDA not `READY`, or the configured guild can't be resolved),
+  Velocity defers the registration in `ExtensionCommandRegistry.deferredRegistrations` and
+  processes it from `onDiscordReady()` once the bot connects
+- Re-registering the same command from the same backend server is idempotent (re-upserts, acks
+  success) — only a name owned by a *different* server, or a built-in name, is rejected
 - Extension disables → `PluginDisableEvent` → auto-unregister all its commands
-- Proxy restarts → Velocity clears all dynamic commands from Discord → backends re-register on next player join
+- Proxy restarts → on the first `ReadyEvent`, Velocity clears stale guild-scoped dynamic commands
+  (skipping any name that has a deferred registration in flight) → backends re-register on next
+  player join
 
 ## Party system (v1.2.0)
 

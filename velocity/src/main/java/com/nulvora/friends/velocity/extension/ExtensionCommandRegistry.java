@@ -5,6 +5,7 @@ import com.nulvora.friends.common.dto.extension.CommandOptionPayload;
 import com.nulvora.friends.common.dto.extension.CommandResponsePayload;
 import com.nulvora.friends.common.dto.extension.CommandSpecPayload;
 import com.nulvora.friends.common.dto.extension.InvokeCommandPayload;
+import com.nulvora.friends.common.dto.extension.RegisterAckPayload;
 import com.nulvora.friends.common.dto.extension.RegisterCommandPayload;
 import com.nulvora.friends.common.dto.extension.SubcommandPayload;
 import com.nulvora.friends.common.dto.extension.UnregisterCommandsPayload;
@@ -23,19 +24,30 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.MessageEmbed;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
+import net.dv8tion.jda.api.exceptions.ErrorResponseException;
 import net.dv8tion.jda.api.interactions.commands.OptionType;
 import net.dv8tion.jda.api.interactions.commands.build.CommandData;
 import net.dv8tion.jda.api.interactions.commands.build.Commands;
 import net.dv8tion.jda.api.interactions.commands.build.SlashCommandData;
 import net.dv8tion.jda.api.interactions.commands.build.SubcommandData;
 import net.dv8tion.jda.api.interactions.commands.build.OptionData;
+import net.dv8tion.jda.api.requests.ErrorResponse;
 import com.velocitypowered.api.proxy.Player;
 import com.velocitypowered.api.proxy.messages.MinecraftChannelIdentifier;
 
+/**
+ * Registro de comandos Discord dinámicos.
+ *
+ * <p>El registro en {@code commandToServer} y el ack a Paper solo ocurren
+ * <b>después</b> de que JDA confirme el {@code upsertCommand}. Mientras JDA no
+ * esté listo (o la guild no se pueda resolver aún), los registros se encolan
+ * en {@link #deferredRegistrations} y se procesan en {@link #onDiscordReady()}.</p>
+ */
 public class ExtensionCommandRegistry {
 
     private static final java.util.List<String> BUILT_IN_COMMANDS = java.util.List.of("vincular", "desvincular", "amigos");
@@ -43,12 +55,21 @@ public class ExtensionCommandRegistry {
     private final NulvoraFriendsPlugin plugin;
     private final Gson gson = new Gson();
     private final ScheduledExecutorService timeoutScheduler = Executors.newSingleThreadScheduledExecutor();
+    private final MinecraftChannelIdentifier channelId = MinecraftChannelIdentifier.from(Channel.CHANNEL_NAME);
 
     private final Map<String, String> commandToServer = new ConcurrentHashMap<>();
-    private final Map<String, CompletableFuture<Void>> pendingAcks = new ConcurrentHashMap<>();
+    private final Map<String, DeferredRegistration> deferredRegistrations = new ConcurrentHashMap<>();
     private final Map<String, PendingInvocation> pendingInvocations = new ConcurrentHashMap<>();
     private final Map<String, SlashCommandInteractionEvent> pendingEventMap = new ConcurrentHashMap<>();
     private final Set<String> dynamicCommands = ConcurrentHashMap.newKeySet();
+    private final AtomicBoolean startupCleared = new AtomicBoolean(false);
+
+    record DeferredRegistration(
+        String requestId,
+        String serverName,
+        UUID carrierUuid,
+        CommandSpecPayload spec
+    ) {}
 
     record PendingInvocation(
         String commandName,
@@ -61,28 +82,44 @@ public class ExtensionCommandRegistry {
         this.plugin = plugin;
     }
 
-    public void handleRegister(RegisterCommandPayload register, String serverName) {
+    public void handleRegister(RegisterCommandPayload register, String serverName, Player carrier) {
         CommandSpecPayload spec = register.spec();
         String name = spec.name();
         String requestId = register.requestId();
+        UUID carrierUuid = carrier != null ? carrier.getUniqueId() : null;
 
         if (BUILT_IN_COMMANDS.contains(name)) {
-            sendAck(requestId, name, false, "Nombre de comando reservado: " + name);
+            sendAck(requestId, name, false, "Nombre de comando reservado: " + name, serverName, carrierUuid);
             return;
         }
 
-        if (commandToServer.containsKey(name)) {
-            String existingServer = commandToServer.get(name);
-            sendAck(requestId, name, false, "Comando ya registrado por servidor: " + existingServer);
+        String existingServer = commandToServer.get(name);
+        if (existingServer != null && !existingServer.equals(serverName)) {
+            sendAck(requestId, name, false, "Comando ya registrado por servidor: " + existingServer, serverName, carrierUuid);
             return;
         }
 
-        commandToServer.put(name, serverName);
-        dynamicCommands.add(name);
-        upsertCommand(spec);
-        sendAck(requestId, name, true, null);
+        long guildId = plugin.config().discord().guildId();
+        if (guildId == 0L) {
+            sendAck(requestId, name, false,
+                "El proxy no tiene 'discord.guild-id' configurado en config.json.", serverName, carrierUuid);
+            return;
+        }
 
-        plugin.logger().info("Comando Discord dinámico registrado: /" + name + " (servidor: " + serverName + ")");
+        DiscordBot bot = plugin.discordBot().orElse(null);
+        if (bot == null) {
+            sendAck(requestId, name, false,
+                "El bot de Discord está deshabilitado en este proxy.", serverName, carrierUuid);
+            return;
+        }
+
+        if (!bot.isReady()) {
+            deferredRegistrations.put(name, new DeferredRegistration(requestId, serverName, carrierUuid, spec));
+            plugin.logger().info("Comando /" + name + " en espera de conexión con Discord (servidor: " + serverName + ")");
+            return;
+        }
+
+        attemptUpsert(requestId, serverName, carrierUuid, spec);
     }
 
     public void handleUnregister(UnregisterCommandsPayload unregister) {
@@ -184,28 +221,100 @@ public class ExtensionCommandRegistry {
             );
 
             byte[] data = Channel.encode(Channel.MSG_EXT_INVOKE, gson.toJson(invoke));
-            carrier.get().sendPluginMessage(MinecraftChannelIdentifier.from(Channel.CHANNEL_NAME), data);
+            boolean sent = carrier.get().getCurrentServer()
+                .map(sc -> sc.sendPluginMessage(channelId, data))
+                .orElse(false);
+            if (!sent) {
+                plugin.logger().warn("No se pudo enviar la invocación de /" + commandName + " al servidor " + serverName);
+            }
         });
+    }
+
+    // ─── Discord readiness ───────────────────────────────────────────────
+
+    /**
+     * Se llama cuando JDA emite {@code ReadyEvent}. La primera vez, limpia los
+     * comandos de guild "stale" (dejados por una sesión previa del proxy) y a
+     * continuación procesa los registros diferidos. En reconexiones posteriores
+     * solo procesa los diferidos.
+     */
+    public void onDiscordReady() {
+        if (!startupCleared.compareAndSet(false, true)) {
+            flushDeferredRegistrations();
+            return;
+        }
+
+        Guild guild = resolveGuild();
+        if (guild == null) {
+            plugin.logger().warn("No se pudieron limpiar comandos dinámicos: guild no encontrada para ID "
+                + plugin.config().discord().guildId());
+            flushDeferredRegistrations();
+            return;
+        }
+
+        guild.retrieveCommands().queue(existing -> {
+            Set<String> keep = new HashSet<>(BUILT_IN_COMMANDS);
+            keep.addAll(deferredRegistrations.keySet());
+            for (var cmd : existing) {
+                if (!keep.contains(cmd.getName())) {
+                    cmd.delete().queue(
+                        success -> {},
+                        error -> plugin.logger().warn("Error eliminando comando stale /" + cmd.getName() + ": " + error.getMessage())
+                    );
+                }
+            }
+            plugin.logger().info("Comandos dinámicos stale limpiados de Discord.");
+            flushDeferredRegistrations();
+        }, error -> {
+            plugin.logger().warn("No se pudieron listar los comandos de Discord: " + error.getMessage());
+            flushDeferredRegistrations();
+        });
+    }
+
+    private void flushDeferredRegistrations() {
+        Map<String, DeferredRegistration> toProcess = new HashMap<>(deferredRegistrations);
+        deferredRegistrations.keySet().removeAll(toProcess.keySet());
+        for (DeferredRegistration d : toProcess.values()) {
+            attemptUpsert(d.requestId(), d.serverName(), d.carrierUuid(), d.spec());
+        }
     }
 
     // ─── JDA helpers ─────────────────────────────────────────────────────
 
-    private void upsertCommand(CommandSpecPayload spec) {
-        DiscordBot bot = plugin.discordBot().orElse(null);
-        if (bot == null || bot.getJda().isEmpty()) return;
-
-        Guild guild = bot.getJda().get().getGuildById(plugin.config().discord().guildId());
+    private void attemptUpsert(String requestId, String serverName, UUID carrierUuid, CommandSpecPayload spec) {
+        String name = spec.name();
+        Guild guild = resolveGuild();
         if (guild == null) {
-            plugin.logger().warn("Guild no encontrada para ID: " + plugin.config().discord().guildId());
+            sendAck(requestId, name, false,
+                "Guild no encontrada para ID: " + plugin.config().discord().guildId(), serverName, carrierUuid);
             return;
         }
 
         SlashCommandData commandData = buildCommandData(spec);
 
         guild.upsertCommand(commandData).queue(
-            success -> plugin.logger().debug("Slash command upserted: /" + spec.name()),
-            error -> plugin.logger().warn("Error upserting /" + spec.name() + ": " + error.getMessage())
+            success -> {
+                commandToServer.put(name, serverName);
+                dynamicCommands.add(name);
+                sendAck(requestId, name, true, null, serverName, carrierUuid);
+                plugin.logger().info("Comando Discord dinámico registrado: /" + name + " (servidor: " + serverName + ")");
+            },
+            error -> {
+                String detail = error.getMessage();
+                if (error instanceof ErrorResponseException ere
+                    && ere.getErrorResponse() == ErrorResponse.MISSING_ACCESS) {
+                    detail = "Falta acceso (MISSING_ACCESS). Reinvita al bot con el scope 'applications.commands'.";
+                }
+                plugin.logger().error("Error registrando /" + name + " en Discord", error);
+                sendAck(requestId, name, false, detail, serverName, carrierUuid);
+            }
         );
+    }
+
+    private Guild resolveGuild() {
+        DiscordBot bot = plugin.discordBot().orElse(null);
+        if (bot == null || bot.getJda().isEmpty()) return null;
+        return bot.getJda().get().getGuildById(plugin.config().discord().guildId());
     }
 
     private SlashCommandData buildCommandData(CommandSpecPayload spec) {
@@ -248,10 +357,7 @@ public class ExtensionCommandRegistry {
     }
 
     private void deleteCommand(String commandName) {
-        DiscordBot bot = plugin.discordBot().orElse(null);
-        if (bot == null || bot.getJda().isEmpty()) return;
-
-        Guild guild = bot.getJda().get().getGuildById(plugin.config().discord().guildId());
+        Guild guild = resolveGuild();
         if (guild == null) return;
 
         guild.retrieveCommands().queue(commands -> {
@@ -267,34 +373,26 @@ public class ExtensionCommandRegistry {
         });
     }
 
-    public void clearDynamicCommands() {
-        DiscordBot bot = plugin.discordBot().orElse(null);
-        if (bot == null || bot.getJda().isEmpty()) return;
-
-        Guild guild = bot.getJda().get().getGuildById(plugin.config().discord().guildId());
-        if (guild == null) return;
-
-        guild.retrieveCommands().queue(commands -> {
-            Set<String> builtInNames = new HashSet<>(BUILT_IN_COMMANDS);
-            for (var cmd : commands) {
-                if (!builtInNames.contains(cmd.getName())) {
-                    cmd.delete().queue();
-                }
-            }
-        });
-    }
-
     // ─── Ack helpers ─────────────────────────────────────────────────────
 
-    private void sendAck(String requestId, String command, boolean success, String error) {
-        com.nulvora.friends.common.dto.extension.RegisterAckPayload ack =
-            new com.nulvora.friends.common.dto.extension.RegisterAckPayload(requestId, command, success, error);
+    private void sendAck(String requestId, String command, boolean success, String error,
+                          String serverName, UUID carrierUuid) {
+        RegisterAckPayload ack = new RegisterAckPayload(requestId, command, success, error);
+        byte[] data = Channel.encode(Channel.MSG_EXT_REGISTER_ACK, gson.toJson(ack));
 
-        for (Player player : plugin.proxy().getAllPlayers()) {
-            byte[] data = Channel.encode(Channel.MSG_EXT_REGISTER_ACK, gson.toJson(ack));
-            player.sendPluginMessage(MinecraftChannelIdentifier.from(Channel.CHANNEL_NAME), data);
-            return;
-        }
+        Optional<Player> carrier = carrierUuid != null ? plugin.proxy().getPlayer(carrierUuid) : Optional.empty();
+        if (carrier.isPresent() && sendToBackend(carrier.get(), data)) return;
+
+        Optional<Player> fallback = findCarrierPlayer(serverName);
+        if (fallback.isPresent() && sendToBackend(fallback.get(), data)) return;
+
+        plugin.logger().warn("No se pudo enviar el ack de /" + command + ": no hay jugadores en " + serverName + ".");
+    }
+
+    private boolean sendToBackend(Player player, byte[] data) {
+        return player.getCurrentServer()
+            .map(sc -> sc.sendPluginMessage(channelId, data))
+            .orElse(false);
     }
 
     // ─── Helpers ─────────────────────────────────────────────────────────
@@ -330,7 +428,7 @@ public class ExtensionCommandRegistry {
     public void shutdown() {
         timeoutScheduler.shutdownNow();
         commandToServer.clear();
-        pendingAcks.clear();
+        deferredRegistrations.clear();
         pendingInvocations.clear();
         pendingEventMap.clear();
         dynamicCommands.clear();

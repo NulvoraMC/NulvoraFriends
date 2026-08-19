@@ -135,17 +135,12 @@ java {
 repositories {
     mavenCentral()
     maven("https://repo.papermc.io/repository/maven-public/")
-    maven("https://maven.pkg.github.com/danielmaldonadodev/nulvorafriends") {
-        credentials {
-            username = System.getenv("GITHUB_ACTOR") ?: project.findProperty("github.user") as? String ?: ""
-            password = System.getenv("GITHUB_TOKEN") ?: project.findProperty("github.token") as? String ?: ""
-        }
-    }
+    maven("https://maven.elordenador.org/repository/maven-releases/")
 }
 
 dependencies {
     compileOnly("io.papermc.paper:paper-api:1.21.1-R0.1-SNAPSHOT")
-    compileOnly("com.nulvora.friends:nulvora-friends-papermc:1.2.0-SNAPSHOT")
+    compileOnly("com.nulvora.friends:nulvora-friends-papermc:1.3.3")
 }
 ```
 

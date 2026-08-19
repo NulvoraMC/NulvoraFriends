@@ -14,6 +14,7 @@ import com.velocitypowered.api.event.connection.PluginMessageEvent;
 import com.velocitypowered.api.proxy.ServerConnection;
 import com.velocitypowered.api.proxy.messages.MinecraftChannelIdentifier;
 import com.velocitypowered.api.proxy.Player;
+import java.util.Optional;
 import java.util.UUID;
 
 public class PluginMessageListener {
@@ -37,6 +38,8 @@ public class PluginMessageListener {
             return;
         }
 
+        event.setResult(PluginMessageEvent.ForwardResult.handled());
+
         String raw = Channel.decode(event.getData());
         JsonObject json = JsonParser.parseString(raw).getAsJsonObject();
         String type = json.get("type").getAsString();
@@ -54,11 +57,15 @@ public class PluginMessageListener {
     private void handleRegister(Player player, String payload) {
         if (plugin.extensionRegistry() == null) return;
         RegisterCommandPayload register = Channel.gson().fromJson(payload, RegisterCommandPayload.class);
-        String serverName = player.getCurrentServer()
-            .map(sc -> sc.getServerInfo().getName())
-            .orElse("unknown");
+        Optional<ServerConnection> serverConnection = player.getCurrentServer();
+        if (serverConnection.isEmpty()) {
+            plugin.logger().warn("Registro de /" + register.spec().name()
+                + " ignorado: no se pudo determinar el servidor de origen.");
+            return;
+        }
 
-        plugin.extensionRegistry().handleRegister(register, serverName);
+        String serverName = serverConnection.get().getServerInfo().getName();
+        plugin.extensionRegistry().handleRegister(register, serverName, player);
     }
 
     private void handleUnregister(String payload) {
@@ -99,7 +106,8 @@ public class PluginMessageListener {
 
     private void handlePing(Player player) {
         byte[] pong = Channel.encode(Channel.MSG_PONG, "{}");
-        player.sendPluginMessage(MinecraftChannelIdentifier.from(Channel.CHANNEL_NAME), pong);
+        player.getCurrentServer().ifPresent(sc ->
+            sc.sendPluginMessage(MinecraftChannelIdentifier.from(Channel.CHANNEL_NAME), pong));
     }
 
     private void handlePartyWarp(String payload) {

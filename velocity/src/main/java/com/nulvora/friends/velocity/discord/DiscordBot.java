@@ -2,6 +2,7 @@ package com.nulvora.friends.velocity.discord;
 
 import com.nulvora.friends.velocity.NulvoraFriendsPlugin;
 import com.nulvora.friends.velocity.config.NulvoraConfig;
+import com.nulvora.friends.velocity.extension.ExtensionCommandRegistry;
 import com.velocitypowered.api.proxy.Player;
 import java.util.Optional;
 import java.util.UUID;
@@ -21,6 +22,7 @@ public class DiscordBot extends ListenerAdapter {
 
     private final NulvoraFriendsPlugin plugin;
     private JDA jda;
+    private volatile boolean ready = false;
 
     public DiscordBot(NulvoraFriendsPlugin plugin) {
         this.plugin = plugin;
@@ -62,12 +64,16 @@ public class DiscordBot extends ListenerAdapter {
 
     @Override
     public void onReady(@NotNull ReadyEvent event) {
+        ready = true;
         plugin.logger().info("Bot de Discord conectado como " + event.getJDA().getSelfUser().getAsTag());
+        plugin.extensionRegistryOpt().ifPresent(ExtensionCommandRegistry::onDiscordReady);
     }
 
     public void stop() {
         if (jda != null) jda.shutdownNow();
     }
+
+    public boolean isReady() { return ready; }
 
     public Optional<JDA> getJda() { return Optional.ofNullable(jda); }
 
@@ -96,10 +102,10 @@ public class DiscordBot extends ListenerAdapter {
             case "vincular" -> handleLink(event);
             case "desvincular" -> handleUnlink(event);
             case "amigos" -> handleFriendsList(event);
-            default -> {
-                // Extension commands
-                plugin.extensionRegistry().handleInteraction(event);
-            }
+            default -> plugin.extensionRegistryOpt().ifPresentOrElse(
+                registry -> registry.handleInteraction(event),
+                () -> event.reply("Comando no disponible.").setEphemeral(true).queue()
+            );
         }
     }
 

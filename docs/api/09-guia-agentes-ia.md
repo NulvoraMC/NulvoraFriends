@@ -15,12 +15,14 @@ Guia paso a paso para que un agente de IA implemente una extension de NulvoraFri
 
 ## Paso 0: Verificar configuracion Maven
 
-Antes de cualquier cosa, verificar que las credenciales de GitHub Packages estan configuradas:
+Antes de cualquier cosa, verificar que el repositorio de NulvoraFriends esta declarado:
 
-1. Verificar que `GITHUB_ACTOR` y `GITHUB_TOKEN` estan definidos en el entorno, O que `~/.gradle/gradle.properties` tiene `github.user` y `github.token`
-2. El token debe tener el scope `read:packages`
+```kotlin
+maven("https://maven.elordenador.org/repository/maven-releases/")
+```
 
-Si no existen, informar al usuario que necesita configurarlas.
+Es un repositorio de lectura anonima (no requiere credenciales ni token) para las versiones
+release (sin sufijo `-SNAPSHOT`).
 
 ## Paso 1: Verificar build.gradle.kts
 
@@ -28,7 +30,7 @@ Verificar que el archivo de build tiene:
 
 ```kotlin
 dependencies {
-    compileOnly("com.nulvora.friends:nulvora-friends-papermc:1.2.0-SNAPSHOT")
+    compileOnly("com.nulvora.friends:nulvora-friends-papermc:1.3.3")
 }
 ```
 
@@ -251,17 +253,12 @@ java {
 repositories {
     mavenCentral()
     maven("https://repo.papermc.io/repository/maven-public/")
-    maven("https://maven.pkg.github.com/danielmaldonadodev/nulvorafriends") {
-        credentials {
-            username = System.getenv("GITHUB_ACTOR") ?: project.findProperty("github.user") as? String ?: ""
-            password = System.getenv("GITHUB_TOKEN") ?: project.findProperty("github.token") as? String ?: ""
-        }
-    }
+    maven("https://maven.elordenador.org/repository/maven-releases/")
 }
 
 dependencies {
     compileOnly("io.papermc.paper:paper-api:1.21.1-R0.1-SNAPSHOT")
-    compileOnly("com.nulvora.friends:nulvora-friends-papermc:1.2.0-SNAPSHOT")
+    compileOnly("com.nulvora.friends:nulvora-friends-papermc:1.3.3")
 }
 ```
 

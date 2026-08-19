@@ -33,7 +33,7 @@ import java.util.concurrent.Executors;
 import com.google.inject.Inject;
 import org.slf4j.Logger;
 
-@Plugin(id = "nulfriends", name = "NulvoraFriends", version = "1.3.1-SNAPSHOT",
+@Plugin(id = "nulfriends", name = "NulvoraFriends", version = "1.3.3",
         url = "https://github.com/nulvora/nulvorafriends",
         description = "Sistema de amigos con integracion Discord para la network Nulvora")
 public class NulvoraFriendsPlugin {
@@ -73,28 +73,13 @@ public class NulvoraFriendsPlugin {
             partyService = new PartyService(this);
         }
 
+        if (config.extensions().enabled()) {
+            extensionRegistry = new ExtensionCommandRegistry(this);
+        }
+
         if (config.discord().enabled()) {
             discordBot = new DiscordBot(this);
             discordBot.start();
-        }
-
-        if (config.extensions().enabled()) {
-            extensionRegistry = new ExtensionCommandRegistry(this);
-            if (discordBot != null) {
-                proxy.getScheduler().buildTask(this, () -> {
-                    discordBot.getJda().ifPresent(jda -> {
-                        try {
-                            jda.awaitReady();
-                            extensionRegistry.clearDynamicCommands();
-                            logger.info("Comandos dinámicos stale limpiados de Discord.");
-                        } catch (InterruptedException e) {
-                            Thread.currentThread().interrupt();
-                        } catch (Exception e) {
-                            logger.warn("No se pudieron limpiar comandos dinámicos: " + e.getMessage());
-                        }
-                    });
-                }).delay(5, java.util.concurrent.TimeUnit.SECONDS).schedule();
-            }
         }
 
         proxy.getChannelRegistrar().register(MinecraftChannelIdentifier.from(Channel.CHANNEL_NAME));
@@ -144,8 +129,8 @@ public class NulvoraFriendsPlugin {
         try {
             byte[] bytes = Files.readAllBytes(dataDirectory.resolve("config.json"));
             config = new Gson().fromJson(new String(bytes), NulvoraConfig.class);
-        } catch (IOException e) {
-            logger.warn("Could not load config, using defaults.");
+        } catch (Exception e) {
+            logger.warn("Could not load config (" + e.getMessage() + "), using defaults.");
             config = new NulvoraConfig();
         }
     }

@@ -101,7 +101,7 @@ public class PresenceListener {
                     .map(CompletableFuture::join).toList();
                 FriendDataPayload payload = new FriendDataPayload(uuid.toString(), entries);
                 byte[] data = Channel.encode(Channel.MSG_FRIEND_DATA, Channel.toJson(payload));
-                player.sendPluginMessage(channel, data);
+                player.getCurrentServer().ifPresent(sc -> sc.sendPluginMessage(channel, data));
             });
         });
     }
@@ -110,12 +110,12 @@ public class PresenceListener {
         FriendNotificationPayload payload = new FriendNotificationPayload(
             target.getUniqueId().toString(), type, friendUuid.toString(), friendName, server);
         byte[] data = Channel.encode(Channel.MSG_FRIEND_NOTIFICATION, Channel.toJson(payload));
-        target.sendPluginMessage(channel, data);
+        target.getCurrentServer().ifPresent(sc -> sc.sendPluginMessage(channel, data));
     }
 
     public void sendOpenMenu(Player player) {
         byte[] data = Channel.encode("open_menu", "{}");
-        player.sendPluginMessage(channel, data);
+        player.getCurrentServer().ifPresent(sc -> sc.sendPluginMessage(channel, data));
     }
 
     public void sendJoinRequest(Player target, UUID requesterUuid) {
@@ -123,7 +123,7 @@ public class PresenceListener {
             if (name != null) {
                 JoinRequestPayload payload = new JoinRequestPayload(target.getUniqueId().toString(), requesterUuid.toString());
                 byte[] data = Channel.encode(Channel.MSG_JOIN_REQUEST, Channel.toJson(payload));
-                target.sendPluginMessage(channel, data);
+                target.getCurrentServer().ifPresent(sc -> sc.sendPluginMessage(channel, data));
             }
         });
     }

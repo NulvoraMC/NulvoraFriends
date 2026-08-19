@@ -358,8 +358,8 @@ public class PartyService {
                 party.leader().toString(),
                 entries);
             byte[] data = Channel.encode(Channel.MSG_PARTY_DATA, Channel.toJson(payload));
-            player.sendPluginMessage(
-                MinecraftChannelIdentifier.from(Channel.CHANNEL_NAME), data);
+            player.getCurrentServer().ifPresent(sc ->
+                sc.sendPluginMessage(MinecraftChannelIdentifier.from(Channel.CHANNEL_NAME), data));
         });
     }
 
@@ -370,8 +370,8 @@ public class PartyService {
         PartyDataPayload payload = new PartyDataPayload(
             playerUuid.toString(), null, null, List.of());
         byte[] data = Channel.encode(Channel.MSG_PARTY_DATA, Channel.toJson(payload));
-        player.sendPluginMessage(
-            MinecraftChannelIdentifier.from(Channel.CHANNEL_NAME), data);
+        player.getCurrentServer().ifPresent(sc ->
+            sc.sendPluginMessage(MinecraftChannelIdentifier.from(Channel.CHANNEL_NAME), data));
     }
 
     // ─── Follow ─────────────────────────────────────────────────────────

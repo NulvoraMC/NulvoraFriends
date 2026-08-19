@@ -8,16 +8,8 @@ Tabla de errores frecuentes, sus causas y soluciones.
 
 | Causa | Solucion |
 |-------|----------|
-| Credenciales de GitHub Packages no configuradas | Verificar `GITHUB_ACTOR` y `GITHUB_TOKEN` en el entorno |
-| Token sin scope `read:packages` | Generar un nuevo PAT en github.com/settings/tokens con el scope correcto |
-| Repositorio Maven mal configurado | Verificar la URL y las credenciales en `settings.gradle.kts` |
-
-### 401 Unauthorized al resolver la dependencia
-
-| Causa | Solucion |
-|-------|----------|
-| Token de GitHub expirado o invalido | Generar un nuevo PAT en github.com/settings/tokens |
-| Token sin permisos | Verificar que el token tiene scope `read:packages` |
+| Falta el repositorio `https://maven.elordenador.org/repository/maven-releases/` en `settings.gradle.kts` / `build.gradle.kts` | Añadirlo (lectura anonima, sin credenciales) |
+| La version pedida no existe en ese repositorio | Verificar el numero de version, p.ej. `1.3.3` |
 
 ## Errores de runtime
 
@@ -121,11 +113,17 @@ depend: [NulvoraFriends-Paper]
 
 ### Comando no aparece en Discord
 
+Un log de "encolado para registro" en el backend **no** significa que el comando ya esta en
+Discord: la confirmacion real llega despues, vía el ack de Velocity. Revisar el log del **proxy**
+Velocity, no solo el del backend:
+
 | Causa | Solucion |
 |-------|----------|
 | Velocity no tiene Discord habilitado | Verificar `discord.enabled: true` en config.json |
-| Guild ID invalido | Verificar que el `guild-id` coincide con tu servidor de Discord |
-| Bot no tiene permisos | Verificar que el bot tiene permisos de slash commands en el servidor |
+| `guild-id` en `0` o invalido | Configurar el `guild-id` real de tu servidor de Discord |
+| Bot aun conectando cuando se registro | El registro queda diferido y se procesa solo al recibir el `ReadyEvent`; revisar el log del proxy poco despues del arranque |
+| Bot sin el scope `applications.commands` | Reinvitar al bot con ese scope (el proxy loguea `MISSING_ACCESS` en ese caso) |
+| Ningun jugador online en el backend | El registro (y su ack) no se puede transmitir hasta que entre un jugador |
 
 ### El usuario no ve el comando
 
@@ -140,7 +138,9 @@ Si algo no funciona, verifica en este orden:
 
 1. **¿NulvoraFriends-Paper esta activo?** → `plugins list` en la consola
 2. **¿Tu plugin carga?** → Buscar errores en el log al iniciar
-3. **¿Las credenciales estan bien?** → Ejecutar `./gradlew dependencies`
-4. **¿El comando se registro?** → Buscar "Comando registrado" en el log
-5. **¿Discord esta habilitado?** → Verificar config de Velocity
-6. **¿Hay jugadores online?** → Sin jugadores, no hay plugin messaging
+3. **¿El repositorio Maven se resuelve?** → Ejecutar `./gradlew dependencies`
+4. **¿El comando se encolo?** → Buscar "encolado para registro" en el log del **backend**
+5. **¿Velocity confirmo el registro?** → Buscar "registrado en Discord correctamente" (exito) o
+   "rechazado"/"Error registrando" (fallo) en el log del **proxy** — esta es la unica confirmacion real
+6. **¿Discord esta habilitado?** → Verificar config de Velocity
+7. **¿Hay jugadores online?** → Sin jugadores, no hay plugin messaging

@@ -8,8 +8,8 @@ Antes de empezar a desarrollar tu extension, verifica que tienes todo lo necesar
 
 | Componente | Version minima | Donde se ejecuta |
 |------------|---------------|------------------|
-| **NulvoraFriends-Paper** | 1.2.0+ | Plugin PaperMC |
-| **NulvoraFriends-Velocity** | 1.2.0+ | Plugin Velocity (proxy) |
+| **NulvoraFriends-Paper** | 1.3.3+ | Plugin PaperMC |
+| **NulvoraFriends-Velocity** | 1.3.3+ | Plugin Velocity (proxy) |
 | **Java** | 21 o superior | Servidor PaperMC |
 
 ### Configuracion del servidor

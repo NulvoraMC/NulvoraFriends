@@ -6,8 +6,7 @@ Guia completa para desarrolladores y agentes de IA que quieran registrar comando
 
 1. [Requisitos](#1-requisitos)
 2. [Configuracion del proyecto](#2-configuracion-del-proyecto)
-   - [2.0 Obtener acceso al repositorio Maven](#20-obtener-acceso-al-repositorio-maven)
-   - [2.1 Configuracion de credenciales](#21-configuracion-de-credenciales-obligatorio)
+   - [2.1 Repositorio Maven](#21-repositorio-maven)
    - [2.2 build.gradle.kts (Gradle)](#22-buildgradlekts-gradle-kotlin-dsl)
    - [2.3 pom.xml (Maven)](#23-pomxml-maven)
    - [2.4 plugin.yml](#24-pluginyml)
@@ -24,8 +23,8 @@ Guia completa para desarrolladores y agentes de IA que quieran registrar comando
 
 ## 1. Requisitos
 
-- **NulvoraFriends-Paper 1.2.0+** instalado en el servidor PaperMC
-- **NulvoraFriends-Velocity 1.2.0+** ejecutandose en el proxy Velocity
+- **NulvoraFriends-Paper 1.3.3+** instalado en el servidor PaperMC
+- **NulvoraFriends-Velocity 1.3.3+** ejecutandose en el proxy Velocity
 - **Discord habilitado** en la configuracion de Velocity (`discord.enabled: true` con token y guild-id validos)
 - Java 21 o superior
 - El servidor PaperMC debe estar registrado en la config de Velocity (`server-names`)
@@ -36,54 +35,15 @@ Guia completa para desarrolladores y agentes de IA que quieran registrar comando
 
 El plugin extension es un plugin PaperMC normal. La unica dependencia especial es `nulvora-friends-papermc` como `compileOnly` (porque ya esta instalado en el servidor).
 
-### 2.0 Obtener acceso al repositorio Maven
+### 2.1 Repositorio Maven
 
-Los artifacts de NulvoraFriends se publican en **GitHub Packages**. Para resolverlos necesitas un **Personal Access Token (PAT)** de GitHub:
-
-1. Ir a [https://github.com/settings/tokens](https://github.com/settings/tokens)
-2. Click en **"Generate new token"** → **"Generate new token (classic)"**
-3. Darle un nombre (ej: `maven-packages`)
-4. Seleccionar el scope **`read:packages`** (lectura de packages)
-5. Click en **"Generate token"** y copiarlo
-
-> **IMPORTANTE**: El token solo se muestra una vez. Guardalo en un lugar seguro.
-
-### 2.1 Configuracion de credenciales (OBLIGATORIO)
-
-GitHub Packages requiere autenticacion. Hay dos formas de configurar las credenciales:
-
-#### Opcion A: Variables de entorno (recomendado)
-
-Definir en el entorno:
-
-```bash
-# Linux/Mac (en .bashrc, .zshrc o .env)
-export GITHUB_ACTOR="tu-usuario-de-github"
-export GITHUB_TOKEN="ghp_tu_token_aqui"
-```
-
-```powershell
-# Windows (PowerShell)
-$env:GITHUB_ACTOR="tu-usuario-de-github"
-$env:GITHUB_TOKEN="ghp_tu_token_aqui"
-```
-
-#### Opcion B: Archivo gradle.properties en el home
-
-Crear o editar `~/.gradle/gradle.properties`:
-
-```properties
-github.user=tu-usuario-de-github
-github.token=ghp_tu_token_aqui
-```
-
-> **NUNCA** subas el token a un repositorio Git. Si usas CI/CD, usa secrets del repositorio.
+Los artifacts de NulvoraFriends se publican en un repositorio Maven propio (Nexus/Sonatype):
+`https://maven.elordenador.org/repository/maven-releases/`. Las releases (sin sufijo
+`-SNAPSHOT`, p.ej. `1.3.3`) se resuelven por lectura anonima, sin necesidad de credenciales ni token.
 
 ### 2.2 build.gradle.kts (Gradle Kotlin DSL)
 
-#### settings.config.kts (si se usan variables de entorno)
-
-Si configuras las credenciales via variables de entorno (`GITHUB_ACTOR` / `GITHUB_TOKEN`), necesitas declarar el repositorio en `settings.gradle.kts`:
+#### settings.gradle.kts
 
 ```kotlin
 // settings.gradle.kts
@@ -98,12 +58,7 @@ dependencyResolutionManagement {
     repositories {
         mavenCentral()
         maven("https://repo.papermc.io/repository/maven-public/")
-        maven("https://maven.pkg.github.com/danielmaldonadodev/nulvorafriends") {
-            credentials {
-                username = System.getenv("GITHUB_ACTOR") ?: project.findProperty("github.user") as? String ?: ""
-                password = System.getenv("GITHUB_TOKEN") ?: project.findProperty("github.token") as? String ?: ""
-            }
-        }
+        maven("https://maven.elordenador.org/repository/maven-releases/")
     }
 }
 
@@ -129,17 +84,12 @@ java {
 repositories {
     mavenCentral()
     maven("https://repo.papermc.io/repository/maven-public/")
-    maven("https://maven.pkg.github.com/danielmaldonadodev/nulvorafriends") {
-        credentials {
-            username = System.getenv("GITHUB_ACTOR") ?: project.findProperty("github.user") as? String ?: ""
-            password = System.getenv("GITHUB_TOKEN") ?: project.findProperty("github.token") as? String ?: ""
-        }
-    }
+    maven("https://maven.elordenador.org/repository/maven-releases/")
 }
 
 dependencies {
     compileOnly("io.papermc.paper:paper-api:1.21.1-R0.1-SNAPSHOT")
-    compileOnly("com.nulvora.friends:nulvora-friends-papermc:1.2.0-SNAPSHOT")
+    compileOnly("com.nulvora.friends:nulvora-friends-papermc:1.3.3")
 }
 ```
 
@@ -173,8 +123,8 @@ Si usas Maven en vez de Gradle:
             <url>https://repo.papermc.io/repository/maven-public/</url>
         </repository>
         <repository>
-            <id>github-nulvorafriends</id>
-            <url>https://maven.pkg.github.com/danielmaldonadodev/nulvorafriends</url>
+            <id>nulvorafriends-releases</id>
+            <url>https://maven.elordenador.org/repository/maven-releases/</url>
             <releases><enabled>true</enabled></releases>
         </repository>
     </repositories>
@@ -189,26 +139,15 @@ Si usas Maven en vez de Gradle:
         <dependency>
             <groupId>com.nulvora.friends</groupId>
             <artifactId>nulvora-friends-papermc</artifactId>
-            <version>1.2.0-SNAPSHOT</version>
+            <version>1.3.3</version>
             <scope>provided</scope>
         </dependency>
     </dependencies>
 </project>
 ```
 
-Credenciales Maven — crear `~/.m2/settings.xml`:
-
-```xml
-<settings>
-  <servers>
-    <server>
-      <id>github-nulvorafriends</id>
-      <username>${env.GITHUB_ACTOR}</username>
-      <password>${env.GITHUB_TOKEN}</password>
-    </server>
-  </servers>
-</settings>
-```
+> En Maven, `scope: provided` equivale a `compileOnly` de Gradle. No hace falta configurar
+> `~/.m2/settings.xml` para este repositorio (lectura anonima).
 
 ### 2.4 plugin.yml
 
@@ -237,7 +176,7 @@ mvn dependency:tree
 Deberias ver algo como:
 
 ```
-com.nulvora.friends:nulvora-friends-papermc:1.2.0-SNAPSHOT -> compileOnly (provided)
+com.nulvora.friends:nulvora-friends-papermc:1.3.3 -> compileOnly (provided)
 ```
 
 ---
@@ -722,8 +661,7 @@ boolean isLeader = party.isLeader(playerUuid);
 
 | Error | Causa | Solucion |
 |-------|-------|----------|
-| `Could not resolve com.nulvora.friends:nulvora-friends-papermc` | Credenciales de GitHub Packages no configuradas o token sin scope `read:packages` | Verificar `GITHUB_ACTOR` y `GITHUB_TOKEN` en el entorno, o `~/.gradle/gradle.properties` |
-| `401 Unauthorized` al resolver la dependencia | Token de GitHub expirado o invalido | Generar un nuevo PAT en github.com/settings/tokens con scope `read:packages` |
+| `Could not resolve com.nulvora.friends:nulvora-friends-papermc` | Falta declarar `https://maven.elordenador.org/repository/maven-releases/` en los repositorios, o la version pedida no existe ahi | Añadir el repositorio y verificar el numero de version |
 | `IllegalStateException: API no disponible` | NulvoraFriends-Paper no esta activo | Verificar plugin instalado y habilitado |
 | `Nombre de comando reservado` | Colision con `vincular`/`desvincular`/`amigos` | Cambiar el nombre del comando |
 | `Comando ya registrado por servidor` | Otro servidor ya registro ese nombre | Coordinar nombres entre extensiones |
@@ -742,21 +680,15 @@ Cuando un agente de IA implemente una extension para NulvoraFriends, debe seguir
 
 ### Paso 0: Configurar el repositorio Maven
 
-1. Verificar que `GITHUB_ACTOR` y `GITHUB_TOKEN` estan definidos en el entorno, O que `~/.gradle/gradle.properties` tiene `github.user` y `github.token`
-2. El token debe tener el scope `read:packages`
-3. En `settings.gradle.kts` (o `build.gradle.kts` si no se usa settings), agregar el repositorio con credenciales:
-   ```kotlin
-   maven("https://maven.pkg.github.com/danielmaldonadodev/nulvorafriends") {
-       credentials {
-           username = System.getenv("GITHUB_ACTOR") ?: project.findProperty("github.user") as? String ?: ""
-           password = System.getenv("GITHUB_TOKEN") ?: project.findProperty("github.token") as? String ?: ""
-       }
-   }
-   ```
+En `settings.gradle.kts` (o `build.gradle.kts` si no se usa settings), agregar el repositorio
+(lectura anonima, sin credenciales):
+```kotlin
+maven("https://maven.elordenador.org/repository/maven-releases/")
+```
 
 ### Paso 1: Verificar build.gradle.kts
 
-- Tiene `compileOnly("com.nulvora.friends:nulvora-friends-papermc:1.2.0-SNAPSHOT")`
+- Tiene `compileOnly("com.nulvora.friends:nulvora-friends-papermc:1.3.3")`
 - NO usa `implementation` para esta dependencia
 
 ### Paso 2: Verificar plugin.yml
