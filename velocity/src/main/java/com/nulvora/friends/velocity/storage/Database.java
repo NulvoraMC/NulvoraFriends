@@ -10,7 +10,6 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
@@ -36,8 +35,6 @@ public class Database {
                 CREATE TABLE IF NOT EXISTS players (
                     uuid VARCHAR(36) PRIMARY KEY,
                     name VARCHAR(16) NOT NULL,
-                    discord_id BIGINT UNSIGNED NULL UNIQUE,
-                    linked_at TIMESTAMP NULL,
                     first_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     last_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
                 )
@@ -57,13 +54,6 @@ public class Database {
                     receiver VARCHAR(36) NOT NULL,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     PRIMARY KEY (sender, receiver)
-                )
-            """);
-            stmt.executeUpdate("""
-                CREATE TABLE IF NOT EXISTS link_codes (
-                    code VARCHAR(8) PRIMARY KEY,
-                    uuid VARCHAR(36) NOT NULL,
-                    expires_at TIMESTAMP NOT NULL
                 )
             """);
         } catch (SQLException e) {
@@ -100,81 +90,6 @@ public class Database {
                      "UPDATE players SET last_seen = CURRENT_TIMESTAMP WHERE uuid = ?")) {
                 ps.setString(1, uuid.toString());
                 ps.executeUpdate();
-            } catch (SQLException e) {
-                throw new RuntimeException(e);
-            }
-        });
-    }
-
-    public CompletableFuture<Optional<Long>> getDiscordId(UUID uuid) {
-        return CompletableFuture.supplyAsync(() -> {
-            try (Connection conn = dataSource.getConnection();
-                 PreparedStatement ps = conn.prepareStatement(
-                     "SELECT discord_id FROM players WHERE uuid = ?")) {
-                ps.setString(1, uuid.toString());
-                ResultSet rs = ps.executeQuery();
-                if (rs.next()) {
-                    long id = rs.getLong("discord_id");
-                    return rs.wasNull() ? Optional.empty() : Optional.of(id);
-                }
-                return Optional.empty();
-            } catch (SQLException e) {
-                throw new RuntimeException(e);
-            }
-        });
-    }
-
-    public CompletableFuture<Optional<UUID>> getUuidByDiscordId(long discordId) {
-        return CompletableFuture.supplyAsync(() -> {
-            try (Connection conn = dataSource.getConnection();
-                 PreparedStatement ps = conn.prepareStatement(
-                     "SELECT uuid FROM players WHERE discord_id = ?")) {
-                ps.setLong(1, discordId);
-                ResultSet rs = ps.executeQuery();
-                if (rs.next()) {
-                    return Optional.of(UUID.fromString(rs.getString("uuid")));
-                }
-                return Optional.empty();
-            } catch (SQLException e) {
-                throw new RuntimeException(e);
-            }
-        });
-    }
-
-    public CompletableFuture<Boolean> linkAccounts(UUID uuid, long discordId) {
-        return CompletableFuture.supplyAsync(() -> {
-            try (Connection conn = dataSource.getConnection();
-                 PreparedStatement ps = conn.prepareStatement(
-                     "UPDATE players SET discord_id = ?, linked_at = CURRENT_TIMESTAMP WHERE uuid = ?")) {
-                ps.setLong(1, discordId);
-                ps.setString(2, uuid.toString());
-                return ps.executeUpdate() > 0;
-            } catch (SQLException e) {
-                throw new RuntimeException(e);
-            }
-        });
-    }
-
-    public CompletableFuture<Boolean> unlinkAccounts(UUID uuid) {
-        return CompletableFuture.supplyAsync(() -> {
-            try (Connection conn = dataSource.getConnection();
-                 PreparedStatement ps = conn.prepareStatement(
-                     "UPDATE players SET discord_id = NULL, linked_at = NULL WHERE uuid = ?")) {
-                ps.setString(1, uuid.toString());
-                return ps.executeUpdate() > 0;
-            } catch (SQLException e) {
-                throw new RuntimeException(e);
-            }
-        });
-    }
-
-    public CompletableFuture<Boolean> unlinkByDiscordId(long discordId) {
-        return CompletableFuture.supplyAsync(() -> {
-            try (Connection conn = dataSource.getConnection();
-                 PreparedStatement ps = conn.prepareStatement(
-                     "UPDATE players SET discord_id = NULL, linked_at = NULL WHERE discord_id = ?")) {
-                ps.setLong(1, discordId);
-                return ps.executeUpdate() > 0;
             } catch (SQLException e) {
                 throw new RuntimeException(e);
             }
@@ -357,49 +272,6 @@ public class Database {
         });
     }
 
-    public CompletableFuture<Void> storeLinkCode(String code, UUID uuid, long expiryMillis) {
-        return CompletableFuture.runAsync(() -> {
-            try (Connection conn = dataSource.getConnection();
-                 PreparedStatement ps = conn.prepareStatement(
-                     "INSERT INTO link_codes (code, uuid, expires_at) VALUES (?, ?, DATE_ADD(NOW(), INTERVAL ? MICROSECOND)) " +
-                     "ON DUPLICATE KEY UPDATE uuid = VALUES(uuid), expires_at = VALUES(expires_at)")) {
-                ps.setString(1, code);
-                ps.setString(2, uuid.toString());
-                ps.setLong(3, expiryMillis * 1000);
-                ps.executeUpdate();
-            } catch (SQLException e) {
-                throw new RuntimeException(e);
-            }
-        });
-    }
-
-    public CompletableFuture<Optional<UUID>> consumeLinkCode(String code) {
-        return CompletableFuture.supplyAsync(() -> {
-            try (Connection conn = dataSource.getConnection()) {
-                conn.setAutoCommit(false);
-                UUID uuid;
-                try (PreparedStatement ps = conn.prepareStatement(
-                     "SELECT uuid FROM link_codes WHERE code = ? AND expires_at > NOW()")) {
-                    ps.setString(1, code);
-                    ResultSet rs = ps.executeQuery();
-                    if (!rs.next()) {
-                        conn.rollback();
-                        return Optional.empty();
-                    }
-                    uuid = UUID.fromString(rs.getString("uuid"));
-                }
-                try (PreparedStatement del = conn.prepareStatement("DELETE FROM link_codes WHERE code = ?")) {
-                    del.setString(1, code);
-                    del.executeUpdate();
-                }
-                conn.commit();
-                return Optional.of(uuid);
-            } catch (SQLException e) {
-                throw new RuntimeException(e);
-            }
-        });
-    }
-
     public CompletableFuture<String> getName(UUID uuid) {
         return CompletableFuture.supplyAsync(() -> {
             try (Connection conn = dataSource.getConnection();
@@ -414,17 +286,5 @@ public class Database {
         });
     }
 
-    public CompletableFuture<Boolean> isLinked(UUID uuid) {
-        return CompletableFuture.supplyAsync(() -> {
-            try (Connection conn = dataSource.getConnection();
-                 PreparedStatement ps = conn.prepareStatement(
-                     "SELECT discord_id IS NOT NULL AS linked FROM players WHERE uuid = ?")) {
-                ps.setString(1, uuid.toString());
-                ResultSet rs = ps.executeQuery();
-                return rs.next() && rs.getBoolean("linked");
-            } catch (SQLException e) {
-                throw new RuntimeException(e);
-            }
-        });
-    }
+
 }

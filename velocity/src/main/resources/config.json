@@ -7,12 +7,6 @@
     "password": "",
     "pool-size": 5
   },
-  "discord": {
-    "enabled": false,
-    "token": "TU_TOKEN_DE_DISCORD_AQUI",
-    "guild-id": 0,
-    "linked-role-id": 0
-  },
   "server-names": {
     "lobby": "Lobby",
     "survival-origins": "Survival Origins",
@@ -32,11 +26,6 @@
     "target-friend-full": "&cLa lista de amigos de &e%player% &cestá llena.",
     "player-offline": "&cEl jugador &e%player% &cestá desconectado.",
     "player-not-found": "&cJugador no encontrado.",
-    "link-code-generated": "&aTu código de vinculación es: &e%code% &a(válido 5 min). &6Envíalo al bot de Discord.",
-    "link-success": "&aCuenta vinculada con &e%discord%&a.",
-    "unlink-success": "&aCuenta de Discord desvinculada.",
-    "not-linked": "&cTu cuenta no está vinculada con Discord.",
-    "already-linked": "&cTu cuenta ya está vinculada. Usa &e/desvincular &cprimero.",
     "friend-join-network": "&a&l+ &e%player% &ase ha conectado a la red.",
     "friend-leave-network": "&c&l- &e%player% &ase ha desconectado.",
     "friend-server-change": "&e%friend% &ahas entrado a &e%server%&a.",
@@ -68,8 +57,13 @@
       "cooldown-ms": 5000
     }
   },
-  "extensions": {
-    "enabled": true,
-    "command-timeout-ms": 10000
+  "redis": {
+    "host": "localhost",
+    "port": 6379,
+    "username": "",
+    "password": "",
+    "database": 0,
+    "namespace": "nulfriends",
+    "cache-ttl-seconds": 300
   }
 }

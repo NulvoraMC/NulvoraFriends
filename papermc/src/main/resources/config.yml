@@ -1,3 +1,11 @@
+redis:
+  host: localhost
+  port: 6379
+  username: ''
+  password: ''
+  database: 0
+  namespace: nulfriends
+
 messages:
   friend-join-network: '&a&l+ &e%player% &ase ha conectado a la red.'
   friend-leave-network: '&c&l- &e%player% &ase ha desconectado.'

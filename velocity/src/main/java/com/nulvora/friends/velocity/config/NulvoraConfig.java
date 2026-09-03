@@ -9,8 +9,8 @@ public class NulvoraConfig {
     @SerializedName("mysql")
     private MysqlConfig mysql = new MysqlConfig();
 
-    @SerializedName("discord")
-    private DiscordConfig discord = new DiscordConfig();
+    @SerializedName("redis")
+    private RedisConfig redis = new RedisConfig();
 
     @SerializedName("server-names")
     private Map<String, String> serverNames = new HashMap<>();
@@ -21,18 +21,14 @@ public class NulvoraConfig {
     @SerializedName("messages")
     private MessagesConfig messages = new MessagesConfig();
 
-    @SerializedName("extensions")
-    private ExtensionsConfig extensions = new ExtensionsConfig();
-
     @SerializedName("party")
     private PartyConfig party = new PartyConfig();
 
     public MysqlConfig mysql() { return mysql; }
-    public DiscordConfig discord() { return discord; }
+    public RedisConfig redis() { return redis; }
     public Map<String, String> serverNames() { return serverNames; }
     public int maxFriends() { return maxFriends; }
     public MessagesConfig messages() { return messages; }
-    public ExtensionsConfig extensions() { return extensions; }
     public PartyConfig party() { return party; }
 
     public String getServerName(String serverId) {
@@ -55,16 +51,22 @@ public class NulvoraConfig {
         public int poolSize() { return poolSize; }
     }
 
-    public static class DiscordConfig {
-        @SerializedName("enabled") private boolean enabled = false;
-        @SerializedName("token") private String token = "";
-        @SerializedName("guild-id") private long guildId = 0L;
-        @SerializedName("linked-role-id") private long linkedRoleId = 0L;
+    public static class RedisConfig {
+        @SerializedName("host") private String host = "localhost";
+        @SerializedName("port") private int port = 6379;
+        @SerializedName("username") private String username = "";
+        @SerializedName("password") private String password = "";
+        @SerializedName("database") private int database = 0;
+        @SerializedName("namespace") private String namespace = "nulfriends";
+        @SerializedName("cache-ttl-seconds") private long cacheTtlSeconds = 300;
 
-        public boolean enabled() { return enabled; }
-        public String token() { return token; }
-        public long guildId() { return guildId; }
-        public long linkedRoleId() { return linkedRoleId; }
+        public String host() { return host; }
+        public int port() { return port; }
+        public String username() { return username; }
+        public String password() { return password; }
+        public int database() { return database; }
+        public String namespace() { return namespace; }
+        public long cacheTtlSeconds() { return cacheTtlSeconds; }
     }
 
     public static class MessagesConfig {
@@ -80,11 +82,6 @@ public class NulvoraConfig {
         @SerializedName("target-friend-full") private String targetFriendFull = "&cLa lista de amigos de &e%player% &cestá llena.";
         @SerializedName("player-offline") private String playerOffline = "&cEl jugador &e%player% &cestá desconectado.";
         @SerializedName("player-not-found") private String playerNotFound = "&cJugador no encontrado.";
-        @SerializedName("link-code-generated") private String linkCodeGenerated = "&aTu código de vinculación es: &e%code% &a(válido 5 min). &6Envíalo al bot de Discord.";
-        @SerializedName("link-success") private String linkSuccess = "&aCuenta vinculada con &e%discord%&a.";
-        @SerializedName("unlink-success") private String unlinkSuccess = "&aCuenta de Discord desvinculada.";
-        @SerializedName("not-linked") private String notLinked = "&cTu cuenta no está vinculada con Discord.";
-        @SerializedName("already-linked") private String alreadyLinked = "&cTu cuenta ya está vinculada. Usa &e/desvincular &cprimero.";
         @SerializedName("friend-join-network") private String friendJoinNetwork = "&a&l+ &e%player% &ase ha conectado a la red.";
         @SerializedName("friend-leave-network") private String friendLeaveNetwork = "&c&l- &e%player% &ase ha desconectado.";
         @SerializedName("friend-server-change") private String friendServerChange = "&e%friend% &ahas entrado a &e%server%&a.";
@@ -119,11 +116,6 @@ public class NulvoraConfig {
         public String targetFriendFull() { return targetFriendFull; }
         public String playerOffline() { return playerOffline; }
         public String playerNotFound() { return playerNotFound; }
-        public String linkCodeGenerated() { return linkCodeGenerated; }
-        public String linkSuccess() { return linkSuccess; }
-        public String unlinkSuccess() { return unlinkSuccess; }
-        public String notLinked() { return notLinked; }
-        public String alreadyLinked() { return alreadyLinked; }
         public String friendJoinNetwork() { return friendJoinNetwork; }
         public String friendLeaveNetwork() { return friendLeaveNetwork; }
         public String friendServerChange() { return friendServerChange; }
@@ -145,14 +137,6 @@ public class NulvoraConfig {
         public String partyPlayerKicked() { return partyPlayerKicked; }
         public String partyNotLeader() { return partyNotLeader; }
         public String partyToofew() { return partyToofew; }
-    }
-
-    public static class ExtensionsConfig {
-        @SerializedName("enabled") private boolean enabled = true;
-        @SerializedName("command-timeout-ms") private long commandTimeoutMs = 10000;
-
-        public boolean enabled() { return enabled; }
-        public long commandTimeoutMs() { return commandTimeoutMs; }
     }
 
     public static class PartyConfig {

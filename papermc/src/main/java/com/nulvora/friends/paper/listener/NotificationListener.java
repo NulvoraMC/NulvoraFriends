@@ -18,6 +18,7 @@ public class NotificationListener implements Listener {
     @EventHandler
     public void onPlayerJoin(PlayerJoinEvent event) {
         Player player = event.getPlayer();
+        plugin.redis().refresh(player.getUniqueId());
         plugin.getConfig().getString("sounds.friend-join", "");
         String soundName = plugin.getConfig().getString("sounds.friend-join", "");
         if (!soundName.isEmpty()) {

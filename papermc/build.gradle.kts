@@ -21,6 +21,7 @@ dependencies {
 
     implementation(project(":common"))
     implementation("com.google.code.gson:gson:2.11.0")
+    implementation("redis.clients:jedis:5.2.0")
 }
 
 tasks {

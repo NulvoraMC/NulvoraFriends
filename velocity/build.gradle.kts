@@ -19,13 +19,9 @@ dependencies {
     compileOnly("com.velocitypowered:velocity-api:4.0.0")
     annotationProcessor("com.velocitypowered:velocity-api:4.0.0")
 
-    implementation("net.dv8tion:JDA:6.5.0") {
-        exclude(module = "opus-java")
-        exclude(module = "trove4j")
-    }
-
     implementation("com.zaxxer:HikariCP:5.1.0")
     implementation("org.mariadb.jdbc:mariadb-java-client:3.4.1")
+    implementation("redis.clients:jedis:5.2.0")
 
     implementation("com.google.code.gson:gson:2.11.0")
     implementation("org.spongepowered:configurate-hocon:4.1.2")
@@ -41,9 +37,7 @@ tasks {
         archiveBaseName.set("nulvora-friends-velocity")
         archiveClassifier.set("")
         duplicatesStrategy = DuplicatesStrategy.EXCLUDE
-        relocate("net.dv8tion", "com.nulvora.friends.shade.net.dv8tion")
-        relocate("okhttp3", "com.nulvora.friends.shade.okhttp3")
-        relocate("okio", "com.nulvora.friends.shade.okio")
+        relocate("redis.clients", "com.nulvora.friends.shade.redis.clients")
         relocate("com.zaxxer.hikari", "com.nulvora.friends.shade.hikari")
         relocate("org.mariadb", "com.nulvora.friends.shade.mariadb")
         relocate("com.google.gson", "com.nulvora.friends.shade.gson")
