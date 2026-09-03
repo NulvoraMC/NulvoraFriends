@@ -3,10 +3,9 @@ package com.nulvora.friends.paper;
 import com.nulvora.friends.paper.api.NulvoraFriendsApi;
 import com.nulvora.friends.paper.cache.FriendCache;
 import com.nulvora.friends.paper.cache.PartyCache;
-import com.nulvora.friends.paper.extension.DiscordCommandManager;
 import com.nulvora.friends.paper.gui.FriendsGUI;
 import com.nulvora.friends.paper.listener.NotificationListener;
-import com.nulvora.friends.paper.messaging.FriendMessageListener;
+import com.nulvora.friends.paper.redis.RedisService;
 import com.nulvora.friends.paper.party.PartyApiImpl;
 import org.bukkit.Bukkit;
 import org.bukkit.event.EventHandler;
@@ -19,7 +18,7 @@ public class NulvoraFriendsPaper extends JavaPlugin {
     private FriendCache friendCache;
     private PartyCache partyCache;
     private FriendsGUI friendsGUI;
-    private DiscordCommandManager discordCommandManager;
+    private RedisService redis;
 
     @Override
     public void onEnable() {
@@ -29,14 +28,16 @@ public class NulvoraFriendsPaper extends JavaPlugin {
         partyCache = new PartyCache();
         friendsGUI = new FriendsGUI(this);
 
-        discordCommandManager = new DiscordCommandManager(this);
-
         // Exponer API singleton
-        NulvoraFriendsApi.setInstance(new NulvoraFriendsApi(discordCommandManager, new PartyApiImpl(partyCache, this)));
+        NulvoraFriendsApi.setInstance(new NulvoraFriendsApi(new PartyApiImpl(partyCache, this)));
 
-        getServer().getMessenger().registerOutgoingPluginChannel(this, "nulfriends:main");
-        getServer().getMessenger().registerIncomingPluginChannel(this, "nulfriends:main",
-            new FriendMessageListener(this, discordCommandManager));
+        try {
+            redis = new RedisService(this);
+        } catch (Exception e) {
+            getLogger().severe("No se pudo conectar a Redis: " + e.getMessage());
+            getServer().getPluginManager().disablePlugin(this);
+            return;
+        }
 
         getServer().getPluginManager().registerEvents(new NotificationListener(this), this);
 
@@ -70,10 +71,7 @@ public class NulvoraFriendsPaper extends JavaPlugin {
     public void onDisable() {
         NulvoraFriendsApi.clearInstance();
 
-        if (discordCommandManager != null) {
-            discordCommandManager.unregisterAll();
-            discordCommandManager.shutdown();
-        }
+        if (redis != null) redis.close();
         if (friendCache != null) {
             friendCache.clear();
         }
@@ -86,7 +84,7 @@ public class NulvoraFriendsPaper extends JavaPlugin {
     public FriendCache friendCache() { return friendCache; }
     public PartyCache partyCache() { return partyCache; }
     public FriendsGUI friendsGUI() { return friendsGUI; }
-    public DiscordCommandManager discordCommandManager() { return discordCommandManager; }
+    public RedisService redis() { return redis; }
 
     /**
      * Retorna la API singleton de NulvoraFriends.

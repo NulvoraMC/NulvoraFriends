@@ -1,6 +1,5 @@
 package com.nulvora.friends.paper.api;
 
-import com.nulvora.friends.paper.api.discord.DiscordCommandRegistry;
 import com.nulvora.friends.paper.api.party.PartyApi;
 import org.jetbrains.annotations.NotNull;
 
@@ -13,9 +12,6 @@ import org.jetbrains.annotations.NotNull;
  *
  * <p>Ejemplo de uso:</p>
  * <pre>{@code
- * DiscordCommandRegistry registry = NulvoraFriendsApi.get().discord();
- * registry.register(miComando, miHandler);
- *
  * PartyApi party = NulvoraFriendsApi.get().party();
  * Optional<PartySnapshot> snapshot = party.getParty(playerUuid);
  * }</pre>
@@ -26,17 +22,14 @@ public final class NulvoraFriendsApi {
 
     private static NulvoraFriendsApi instance;
 
-    private final DiscordCommandRegistry discordRegistry;
     private final PartyApi partyApi;
 
     /**
      * Crea una nueva instancia de la API. Uso interno del plugin.
      *
-     * @param discordRegistry el registro de comandos de Discord
      * @param partyApi la API de party
      */
-    public NulvoraFriendsApi(DiscordCommandRegistry discordRegistry, PartyApi partyApi) {
-        this.discordRegistry = discordRegistry;
+    public NulvoraFriendsApi(PartyApi partyApi) {
         this.partyApi = partyApi;
     }
 
@@ -70,16 +63,6 @@ public final class NulvoraFriendsApi {
      */
     public static void clearInstance() {
         instance = null;
-    }
-
-    /**
-     * Retorna el registro de comandos de Discord para extensiones.
-     *
-     * @return el {@link DiscordCommandRegistry}
-     */
-    @NotNull
-    public DiscordCommandRegistry discord() {
-        return discordRegistry;
     }
 
     /**

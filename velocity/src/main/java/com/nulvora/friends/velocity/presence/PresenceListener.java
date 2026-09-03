@@ -1,17 +1,14 @@
 package com.nulvora.friends.velocity.presence;
 
-import com.google.gson.JsonArray;
-import com.google.gson.JsonObject;
 import com.nulvora.friends.common.dto.FriendDataPayload;
 import com.nulvora.friends.common.dto.FriendNotificationPayload;
 import com.nulvora.friends.common.dto.JoinRequestPayload;
-import com.nulvora.friends.common.messaging.Channel;
+import com.nulvora.friends.common.redis.RedisProtocol;
 import com.nulvora.friends.velocity.NulvoraFriendsPlugin;
 import com.velocitypowered.api.event.Subscribe;
 import com.velocitypowered.api.event.connection.DisconnectEvent;
 import com.velocitypowered.api.event.connection.PostLoginEvent;
 import com.velocitypowered.api.event.player.ServerConnectedEvent;
-import com.velocitypowered.api.proxy.messages.MinecraftChannelIdentifier;
 import com.velocitypowered.api.proxy.Player;
 import java.util.ArrayList;
 import java.util.List;
@@ -22,11 +19,8 @@ import java.util.concurrent.CompletableFuture;
 public class PresenceListener {
 
     private final NulvoraFriendsPlugin plugin;
-    private final MinecraftChannelIdentifier channel;
-
     public PresenceListener(NulvoraFriendsPlugin plugin) {
         this.plugin = plugin;
-        this.channel = MinecraftChannelIdentifier.from(Channel.CHANNEL_NAME);
     }
 
     @Subscribe
@@ -100,8 +94,7 @@ public class PresenceListener {
                 List<FriendDataPayload.FriendEntry> entries = futures.stream()
                     .map(CompletableFuture::join).toList();
                 FriendDataPayload payload = new FriendDataPayload(uuid.toString(), entries);
-                byte[] data = Channel.encode(Channel.MSG_FRIEND_DATA, Channel.toJson(payload));
-                player.getCurrentServer().ifPresent(sc -> sc.sendPluginMessage(channel, data));
+                plugin.redis().cacheAndPublish(RedisProtocol.FRIEND_DATA, uuid, payload);
             });
         });
     }
@@ -109,21 +102,19 @@ public class PresenceListener {
     public void sendNotification(Player target, String type, UUID friendUuid, String friendName, String server) {
         FriendNotificationPayload payload = new FriendNotificationPayload(
             target.getUniqueId().toString(), type, friendUuid.toString(), friendName, server);
-        byte[] data = Channel.encode(Channel.MSG_FRIEND_NOTIFICATION, Channel.toJson(payload));
-        target.getCurrentServer().ifPresent(sc -> sc.sendPluginMessage(channel, data));
+        plugin.redis().publish(RedisProtocol.FRIEND_NOTIFICATION, payload);
     }
 
     public void sendOpenMenu(Player player) {
-        byte[] data = Channel.encode("open_menu", "{}");
-        player.getCurrentServer().ifPresent(sc -> sc.sendPluginMessage(channel, data));
+        plugin.redis().publish(RedisProtocol.OPEN_MENU,
+            java.util.Map.of("player", player.getUniqueId().toString()));
     }
 
     public void sendJoinRequest(Player target, UUID requesterUuid) {
         plugin.db().getName(requesterUuid).thenAccept(name -> {
             if (name != null) {
                 JoinRequestPayload payload = new JoinRequestPayload(target.getUniqueId().toString(), requesterUuid.toString());
-                byte[] data = Channel.encode(Channel.MSG_JOIN_REQUEST, Channel.toJson(payload));
-                target.getCurrentServer().ifPresent(sc -> sc.sendPluginMessage(channel, data));
+                plugin.redis().publish(RedisProtocol.JOIN_REQUEST, payload);
             }
         });
     }

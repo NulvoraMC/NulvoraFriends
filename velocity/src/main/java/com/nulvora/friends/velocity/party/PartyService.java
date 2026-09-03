@@ -1,10 +1,9 @@
 package com.nulvora.friends.velocity.party;
 
 import com.nulvora.friends.common.dto.PartyDataPayload;
-import com.nulvora.friends.common.messaging.Channel;
+import com.nulvora.friends.common.redis.RedisProtocol;
 import com.nulvora.friends.velocity.NulvoraFriendsPlugin;
 import com.velocitypowered.api.proxy.Player;
-import com.velocitypowered.api.proxy.messages.MinecraftChannelIdentifier;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -357,9 +356,7 @@ public class PartyService {
                 party.id().toString(),
                 party.leader().toString(),
                 entries);
-            byte[] data = Channel.encode(Channel.MSG_PARTY_DATA, Channel.toJson(payload));
-            player.getCurrentServer().ifPresent(sc ->
-                sc.sendPluginMessage(MinecraftChannelIdentifier.from(Channel.CHANNEL_NAME), data));
+            plugin.redis().cacheAndPublish(RedisProtocol.PARTY_DATA, playerUuid, payload);
         });
     }
 
@@ -369,9 +366,7 @@ public class PartyService {
 
         PartyDataPayload payload = new PartyDataPayload(
             playerUuid.toString(), null, null, List.of());
-        byte[] data = Channel.encode(Channel.MSG_PARTY_DATA, Channel.toJson(payload));
-        player.getCurrentServer().ifPresent(sc ->
-            sc.sendPluginMessage(MinecraftChannelIdentifier.from(Channel.CHANNEL_NAME), data));
+        plugin.redis().cacheAndPublish(RedisProtocol.PARTY_DATA, playerUuid, payload);
     }
 
     // ─── Follow ─────────────────────────────────────────────────────────

@@ -1,8 +1,7 @@
 {
-  "channel": "nulfriends:main",
   "mainClass": "com.nulvora.friends.velocity.NulvoraFriendsPlugin",
   "name": "NulvoraFriends",
   "id": "nulfriends",
-  "version": "1.3.3",
+  "version": "2.0.0",
   "dependencies": []
 }

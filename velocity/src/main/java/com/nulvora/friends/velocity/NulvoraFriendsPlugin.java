@@ -2,15 +2,10 @@ package com.nulvora.friends.velocity;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import com.nulvora.friends.common.messaging.Channel;
 import com.nulvora.friends.velocity.command.AmigosCommand;
-import com.nulvora.friends.velocity.command.LinkCommand;
-import com.nulvora.friends.velocity.command.UnlinkCommand;
 import com.nulvora.friends.velocity.config.NulvoraConfig;
-import com.nulvora.friends.velocity.discord.DiscordBot;
-import com.nulvora.friends.velocity.extension.ExtensionCommandRegistry;
 import com.nulvora.friends.velocity.friends.FriendService;
-import com.nulvora.friends.velocity.messaging.PluginMessageListener;
+import com.nulvora.friends.velocity.redis.RedisService;
 import com.nulvora.friends.velocity.party.PartyCommand;
 import com.nulvora.friends.velocity.party.PartyFollowListener;
 import com.nulvora.friends.velocity.party.PartyListener;
@@ -20,7 +15,6 @@ import com.nulvora.friends.velocity.storage.Database;
 import com.velocitypowered.api.event.Subscribe;
 import com.velocitypowered.api.event.proxy.ProxyInitializeEvent;
 import com.velocitypowered.api.event.proxy.ProxyShutdownEvent;
-import com.velocitypowered.api.proxy.messages.MinecraftChannelIdentifier;
 import com.velocitypowered.api.plugin.Plugin;
 import com.velocitypowered.api.proxy.ProxyServer;
 import java.io.IOException;
@@ -33,9 +27,9 @@ import java.util.concurrent.Executors;
 import com.google.inject.Inject;
 import org.slf4j.Logger;
 
-@Plugin(id = "nulfriends", name = "NulvoraFriends", version = "1.3.3",
+@Plugin(id = "nulfriends", name = "NulvoraFriends", version = "2.0.0",
         url = "https://github.com/nulvora/nulvorafriends",
-        description = "Sistema de amigos con integracion Discord para la network Nulvora")
+        description = "Sistema de amigos distribuido con Redis para la network Nulvora")
 public class NulvoraFriendsPlugin {
 
     private final ProxyServer proxy;
@@ -44,8 +38,7 @@ public class NulvoraFriendsPlugin {
     private NulvoraConfig config;
     private Database db;
     private FriendService friendService;
-    private DiscordBot discordBot;
-    private ExtensionCommandRegistry extensionRegistry;
+    private RedisService redis;
     private PartyService partyService;
     private PresenceListener presenceListener;
     private ExecutorService executor;
@@ -69,24 +62,20 @@ public class NulvoraFriendsPlugin {
 
         friendService = new FriendService(db);
 
+        try {
+            redis = new RedisService(this);
+        } catch (Exception e) {
+            db.close();
+            executor.shutdownNow();
+            throw new IllegalStateException("Could not connect to Redis; NulvoraFriends cannot start.", e);
+        }
+
         if (config.party().enabled()) {
             partyService = new PartyService(this);
         }
 
-        if (config.extensions().enabled()) {
-            extensionRegistry = new ExtensionCommandRegistry(this);
-        }
-
-        if (config.discord().enabled()) {
-            discordBot = new DiscordBot(this);
-            discordBot.start();
-        }
-
-        proxy.getChannelRegistrar().register(MinecraftChannelIdentifier.from(Channel.CHANNEL_NAME));
-
         presenceListener = new PresenceListener(this);
         proxy.getEventManager().register(this, presenceListener);
-        proxy.getEventManager().register(this, new PluginMessageListener(this));
 
         if (partyService != null) {
             proxy.getEventManager().register(this, new PartyListener(this));
@@ -97,15 +86,6 @@ public class NulvoraFriendsPlugin {
             proxy.getCommandManager().metaBuilder("nulfriends:amigos").build(),
             new AmigosCommand(this).create()
         );
-        proxy.getCommandManager().register(
-            proxy.getCommandManager().metaBuilder("nulfriends:vincular").build(),
-            new LinkCommand(this).create()
-        );
-        proxy.getCommandManager().register(
-            proxy.getCommandManager().metaBuilder("nulfriends:desvincular").build(),
-            new UnlinkCommand(this).create()
-        );
-
         if (partyService != null) {
             proxy.getCommandManager().register(
                 proxy.getCommandManager().metaBuilder("nulfriends:party").build(),
@@ -118,8 +98,7 @@ public class NulvoraFriendsPlugin {
 
     @Subscribe
     public void onProxyShutdown(ProxyShutdownEvent event) {
-        if (extensionRegistry != null) extensionRegistry.shutdown();
-        if (discordBot != null) discordBot.stop();
+        if (redis != null) redis.close();
         if (db != null) db.close();
         if (executor != null) executor.shutdownNow();
         logger.info("NulvoraFriends disabled.");
@@ -159,9 +138,7 @@ public class NulvoraFriendsPlugin {
     public NulvoraConfig config() { return config; }
     public Database db() { return db; }
     public FriendService friendService() { return friendService; }
-    public Optional<DiscordBot> discordBot() { return Optional.ofNullable(discordBot); }
-    public Optional<ExtensionCommandRegistry> extensionRegistryOpt() { return Optional.ofNullable(extensionRegistry); }
-    public ExtensionCommandRegistry extensionRegistry() { return extensionRegistry; }
+    public RedisService redis() { return redis; }
     public Optional<PartyService> partyServiceOpt() { return Optional.ofNullable(partyService); }
     public PartyService partyService() { return partyService; }
     public PresenceListener presence() { return presenceListener; }

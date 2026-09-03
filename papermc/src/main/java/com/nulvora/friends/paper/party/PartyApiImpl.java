@@ -1,7 +1,7 @@
 package com.nulvora.friends.paper.party;
 
 import com.nulvora.friends.common.dto.PartyWarpRequestPayload;
-import com.nulvora.friends.common.messaging.Channel;
+import com.nulvora.friends.common.redis.RedisProtocol;
 import com.nulvora.friends.paper.NulvoraFriendsPaper;
 import com.nulvora.friends.paper.api.party.PartyApi;
 import com.nulvora.friends.paper.api.party.PartyMember;
@@ -10,7 +10,6 @@ import com.nulvora.friends.paper.cache.PartyCache;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
-import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 
 public class PartyApiImpl implements PartyApi {
@@ -71,12 +70,8 @@ public class PartyApiImpl implements PartyApi {
     public boolean requestWarpToMyServer(@NotNull UUID leaderUuid) {
         if (!isInParty(leaderUuid) || !isLeader(leaderUuid)) return false;
 
-        Player carrier = plugin.getServer().getOnlinePlayers().stream().findFirst().orElse(null);
-        if (carrier == null) return false;
-
         PartyWarpRequestPayload request = new PartyWarpRequestPayload(leaderUuid.toString());
-        byte[] data = Channel.encode(Channel.MSG_PARTY_WARP, Channel.toJson(request));
-        carrier.sendPluginMessage(plugin, Channel.CHANNEL_NAME, data);
+        plugin.redis().publishRequest(RedisProtocol.PARTY_WARP, request);
         return true;
     }
 }

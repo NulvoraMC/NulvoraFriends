@@ -9,7 +9,7 @@ import org.jetbrains.annotations.NotNull;
  * API para consultar la party de un jugador.
  *
  * <p>Los datos provienen de un caché actualizado por el plugin Velocity
- * a través de plugin messaging. Solo hay datos de jugadores conectados
+ * a través de Redis. Solo hay datos de jugadores conectados
  * a este servidor backend.</p>
  *
  * @since 1.2.0
