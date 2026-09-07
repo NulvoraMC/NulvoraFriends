@@ -27,7 +27,7 @@ import java.util.concurrent.Executors;
 import com.google.inject.Inject;
 import org.slf4j.Logger;
 
-@Plugin(id = "nulfriends", name = "NulvoraFriends", version = "2.0.0",
+@Plugin(id = "nulfriends", name = "NulvoraFriends", version = "2.0.1",
         url = "https://github.com/nulvora/nulvorafriends",
         description = "Sistema de amigos distribuido con Redis para la network Nulvora")
 public class NulvoraFriendsPlugin {

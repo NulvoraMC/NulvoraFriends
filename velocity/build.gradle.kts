@@ -37,6 +37,10 @@ tasks {
         archiveBaseName.set("nulvora-friends-velocity")
         archiveClassifier.set("")
         duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+        // MariaDB discovers authentication implementations (including
+        // caching_sha2_password) through META-INF/services. Merge and relocate
+        // those descriptors along with their implementation classes.
+        mergeServiceFiles()
         relocate("redis.clients", "com.nulvora.friends.shade.redis.clients")
         relocate("com.zaxxer.hikari", "com.nulvora.friends.shade.hikari")
         relocate("org.mariadb", "com.nulvora.friends.shade.mariadb")
